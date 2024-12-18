@@ -1,0 +1,934 @@
+﻿@page "/TrialBalanceDetailed"
+@using Microsoft.AspNetCore.Components;
+@using OrisonMIS.Client.Services
+@using OrisonMIS.Shared.Entities.Financial
+@using Syncfusion.Blazor.Buttons;
+@using Syncfusion.Blazor.TreeGrid;
+@using Syncfusion.Blazor.Calendars;
+@using Syncfusion.Blazor.Grids;
+@using Syncfusion.Blazor.DropDowns;
+@using Syncfusion.Blazor.Inputs;
+@using Syncfusion.Blazor.Spinner;
+@using OrisonMIS.Shared.BoldReport;
+@using OrisonMIS.Shared.Entities.General;
+@using System.Text;
+@using Newtonsoft.Json;
+@using Newtonsoft.Json.Linq;
+@using System.Collections.ObjectModel
+@using System.Globalization
+@using System.Diagnostics
+@using System.Dynamic
+@using Syncfusion.Blazor.SplitButtons
+@inject OrisonMIS.Client.Services.GlobalService globalService
+
+@inject NavigationManager uriHelper
+@inject HttpClient http
+@inject GlobalService _GlobalServ
+@inject OrisonMIS.Client.Services.FinServices FinServ
+@inject OrisonMIS.Client.Services.UserRightsService _UserRights
+@inject IJSRuntime IJS
+@inject FinancialDateTimeService FinancialDateService
+@inject OrisonMIS.Client.Logics.Contract.Financial.IAccStmt _IAccStmt
+@inject OrisonMIS.Client.Logics.Contract.Inventory.IInvAccountManager _InvAccountManager
+@inject OrisonMIS.Client.Logics.Contract.Financial.IItemMasterManager _ItemMasterManager
+@inject OrisonMIS.Client.Logics.Contract.Inventory.IInvItemsManager _InvItemsManager
+@inject OrisonMIS.Client.Logics.Contract.Inventory.IInvAccounts _IInvAccounts
+@inject Blazored.SessionStorage.ISessionStorageService _sessionStorage
+@inject OrisonMIS.Client.Logics.Contract.BoldReport.IBoldReportManager _BoldReport
+@inject OrisonMIS.Client.Logics.Contract.General.ICompanyManager _ICompanyManager
+@using Microsoft.Extensions.Localization
+@using OrisonMIS.Client.Resources
+@inject IStringLocalizer<SfResources> Localizer
+
+<head>
+    <link href="css/OrisonSyncfusionStyles.css" rel="stylesheet" />
+    <script src="~/js/boldreports-interop.js"></script>
+</head>
+<style>
+    .row-with-line {
+        position: relative;
+    }
+
+    .row-with-line::after {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 0.5px;
+        background-color: rgb(201, 107, 79);
+        width: 100%;
+    }
+
+</style>
+<div>
+    <div class="box-card-shadow">
+
+        <div class="row">
+            <div class="col-sm-12" style="padding-bottom:7px;">
+                <div class="row" style="padding-top: 5px;">
+                    <div class="col-md-8">
+                        <SfButton @onclick="ExcelExport" IconCss="Icon excel" CssClass="e-btn" Content=@Localizer["Excel"] IsPrimary="false" />
+                        <SfButton @onclick="ExportPdf" IconCss="Icon pdf" CssClass="e-btn" Content=@Localizer["PDF"] IsPrimary="false" />
+                        @if (downloading)
+                        {
+                            <img src="gif/loading-waiting.gif" style="padding-left:2px; width: 20px; height: 20px;" />
+                        }
+
+                    </div>
+                    <div class="col-md-4" style="text-align:end">
+                        <label class="page-heading">@Localizer["Trial Balance Detailed"]</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="box-card-shadow">
+
+        <div class="row">
+            <div class="col-sm-12" style="padding-bottom:8px;">
+                <div class="row">
+                    <div class="col-md-12">
+
+                        <SfDatePicker @bind-Value="@FinancialDateService.StartDate" Format="dd/MM/yyyy" Width="140px" Placeholder=@Localizer["From Date"]></SfDatePicker>
+                        <SfDatePicker @bind-Value="@FinancialDateService.EndDate" Format="dd/MM/yyyy" Width="140px" Placeholder=@Localizer["To Date"]></SfDatePicker>
+                        <SfMultiSelect TValue="string[]" TItem="ParentLevel" AllowFiltering="true" Placeholder=@Localizer["Level"] Width="180px" Mode="@VisualMode.CheckBox" DataSource="@levels" ShowSelectAll="@ShowSelectAllCheckBox" EnableSelectionOrder="@EnableSelectionOrders" ShowDropDownIcon="@EnableDropDownIcon" FilterBarPlaceholder="Search Level" PopupHeight="350px">
+                            <MultiSelectEvents TItem="ParentLevel" TValue="string[]" ValueChange="@ValueChangeHandlerLevels"></MultiSelectEvents>
+                            <MultiSelectFieldSettings Text="Level" Value="Level"></MultiSelectFieldSettings>
+                        </SfMultiSelect>
+                        <SfMultiSelect TValue="string[]" TItem="User" AllowFiltering="true" Placeholder=@Localizer["Hide"] Width="180px" Mode="@VisualMode.CheckBox" DataSource="@users" ShowSelectAll="@ShowSelectAllCheckBox" EnableSelectionOrder="@EnableSelectionOrders" ShowDropDownIcon="@EnableDropDownIcon" FilterBarPlaceholder="Hide Accounts" PopupHeight="350px">
+                            <MultiSelectEvents TItem="User" TValue="string[]" ValueChange="@ValueChangeHandlerHideAccounts"></MultiSelectEvents>
+                            <MultiSelectFieldSettings Text="user" Value="Id"></MultiSelectFieldSettings>
+                        </SfMultiSelect>
+                        <SfButton IconCss="Icon search" @onclick="@Search_Click" title=@Localizer["Search"] CssClass="widthset"></SfButton>
+                        <SfTextBox @ref="search" Input="OnInput" Placeholder=@Localizer["Global Search"] Width="250px" ShowClearButton="true" CssClass="e-btn2"></SfTextBox>
+                        <SfButton IconCss="Icon filter" CssClass="e-btn4" Content=" " @onclick="@Clear_Click" HtmlAttributes="@ClearFilter"></SfButton>
+
+                        @if (Isload)
+                        {
+                            <img src="gif/loading-waiting.gif" style="padding-left:2px; width: 20px; height: 20px;" />
+                        }
+
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="box-card-shadow">
+        <div class="col-md-12 col-sm-12">
+            <div class="row" style="padding-top:0px;">
+                <div class="table-responsive" style="position: relative; min-height:600px; min-width: 300px ">
+                    @if (Stmt == null)
+                    {
+                        <p><em>No data...</em></p>
+                    }
+                    else
+                    {
+                        <SfGrid DataSource="Stmt"
+                                GridLines="@GridLine.Vertical"
+                                EnableHover="true"
+                                @ref="Grid"
+                                Height="@GridHeight"
+                                Width="100%"
+                                AllowFiltering="true"
+                                AllowPdfExport="true"
+                                AllowExcelExport="true"
+                                AllowSorting="true"
+                                RowHeight="25"
+                                AllowPaging="true"
+                                AllowResizing="true">
+                            <GridPageSettings PageSize="200"></GridPageSettings>
+                            <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel" ShowFilterBarStatus="true"></GridFilterSettings>
+                            <GridSortSettings>
+                                <GridSortColumns>
+                                    <GridSortColumn Field="SortField" Direction="SortDirection.Ascending"></GridSortColumn>
+                                </GridSortColumns>
+                            </GridSortSettings>
+                            <GridEvents TValue="TrialBal" ExcelAggregateTemplateInfo="ExcelAggregateTemplateInfoHandler" RowDataBound="OnRowDataBound"></GridEvents>
+                            <GridColumns>
+                                <GridColumn Field="@nameof(TrialBal.ParentLevel)" Visible="false"></GridColumn>
+                                <GridColumn Field="@nameof(TrialBal.VoucherEntry)" Visible="false"></GridColumn>
+                                <GridColumn Width="40px">
+                                    <Template>
+                                        @{
+                                            var val = (context as TrialBal);
+                                            int? id = val.ID;
+                                            <div>
+                                                <a @onclick="@(async() => {await viewStatement(id); })"><img src="Images/View.png" style="height: 20px; width: 20px; cursor: pointer;" /></a>
+                                            </div>
+                                        }
+                                    </Template>
+                                </GridColumn>
+                                <GridColumn Field="@nameof(TrialBal.AccountCode)" HeaderText=@Localizer["Account Code"] Width="120px" HeaderTextAlign="TextAlign.Left">
+                                    <Template>
+                                        @{
+                                            var AccName = (context as TrialBal);
+                                            var Name = AccName.AccountCode;
+                                            @if (AccName.AccountName == "Opening Balance Adjustment")
+                                            {
+                                                <span>@Name</span>
+                                            }
+                                            else if ((AccName.VoucherEntry == 0))
+                                            {
+                                                <span style="font-weight:bold;">@Name</span>
+                                            }
+                                            else
+                                            {
+                                                <span>@Name</span>
+                                            }
+
+                                        }
+                                    </Template>
+                                </GridColumn>
+                                <GridColumn Field="@nameof(TrialBal.AccountName)" HeaderText=@Localizer["Account Name"] Width="240px" HeaderTextAlign="TextAlign.Left">
+                                    <Template>
+
+                                        @{
+
+                                            var data = (context as TrialBal);
+
+                                            var name = CultureInfo.CurrentCulture.TextInfo.ToTitleCase(data.AccountName.ToLower());
+                                            var parentLevel = data.ParentLevel;
+                                            var space = new string(' ', (int)parentLevel * 2);
+
+
+                                            if ((data.VoucherEntry == 0))
+                                            {
+                                                <div style="font-weight:bold; white-space: pre;">@($"{space}{name}")</div>
+
+                                            }
+
+                                            else
+                                            {
+                                                <div style="white-space: pre;">@($"{space}{name}")</div>
+                                            }
+
+                                        }
+
+                                    </Template>
+                                </GridColumn>
+                                <GridColumn Field="@nameof(TrialBal.OpDr)" HeaderText=@Localizer["OpDebit"] Width="120px" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Format="@DecimalFormat">
+                                    <Template>
+                                        @{
+
+                                            var AccName = (context as TrialBal);
+                                            string Value = Convert.ToDecimal(AccName.OpDr).ToString(@DecimalFormat);
+                                            if (Value == "0.00")
+                                                Value = string.Empty;
+                                            @if (AccName.AccountName == "Opening Balance Adjustment")
+                                            {
+                                                <span>@Value</span>
+                                            }
+                                            else if ((AccName.VoucherEntry == 0))
+                                            {
+                                                <span style="font-weight:bold;">@Value</span>
+                                            }
+                                            else
+                                            {
+                                                <span>@Value</span>
+                                            }
+                                        }
+                                    </Template>
+                                </GridColumn>
+                                <GridColumn Field="@nameof(TrialBal.OpCr)" HeaderText=@Localizer["OpCredit"] Width="120px" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Format="@DecimalFormat">
+                                    <Template>
+                                        @{
+
+                                            var AccName = (context as TrialBal);
+                                            string Value = Convert.ToDecimal(AccName.OpCr).ToString(@DecimalFormat);
+                                            if (Value == "0.00")
+                                                Value = string.Empty;
+                                            @if (AccName.AccountName == "Opening Balance Adjustment")
+                                            {
+                                                <span>@Value</span>
+                                            }
+                                            else if ((AccName.VoucherEntry == 0))
+                                            {
+                                                <span style="font-weight:bold;">@Value</span>
+                                            }
+                                            else
+                                            {
+                                                <span>@Value</span>
+                                            }
+                                        }
+                                    </Template>
+                                </GridColumn>
+                                <GridColumn Field="@nameof(TrialBal.Debit)" HeaderText=@Localizer["Current Debit"] Width="120px" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Format="@DecimalFormat">
+                                    <Template>
+                                        @{
+
+                                            var AccName = (context as TrialBal);
+                                            string Value = Convert.ToDecimal(AccName.Debit).ToString(@DecimalFormat);
+                                            if (Value == "0.00")
+                                                Value = string.Empty;
+                                            @if (AccName.AccountName == "Opening Balance Adjustment")
+                                            {
+                                                <span>@Value</span>
+                                            }
+                                            else if ((AccName.VoucherEntry == 0))
+                                            {
+                                                <span style="font-weight:bold;">@Value</span>
+                                            }
+                                            else
+                                            {
+                                                <span>@Value</span>
+                                            }
+                                        }
+                                    </Template>
+                                </GridColumn>
+                                <GridColumn Field="@nameof(TrialBal.Credit)" HeaderText=@Localizer["Current Credit"] Width="120px" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Format="@DecimalFormat">
+                                    <Template>
+                                        @{
+
+                                            var AccName = (context as TrialBal);
+                                            string Value = Convert.ToDecimal(AccName.Credit).ToString(@DecimalFormat);
+                                            if (Value == "0.00")
+                                                Value = string.Empty;
+                                            @if (AccName.AccountName == "Opening Balance Adjustment")
+                                            {
+                                                <span>@Value</span>
+                                            }
+                                            else if ((AccName.VoucherEntry == 0))
+                                            {
+                                                <span style="font-weight:bold;">@Value</span>
+                                            }
+                                            else
+                                            {
+                                                <span>@Value</span>
+                                            }
+                                        }
+                                    </Template>
+                                </GridColumn>
+                                <GridColumn Field="@nameof(TrialBal.Dr)" HeaderText=@Localizer["Balance Debit"] Width="120px" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Format="@DecimalFormat">
+                                    <Template>
+                                        @{
+
+                                            var AccName = (context as TrialBal);
+                                            string Value = (Convert.ToDecimal(AccName.Dr)).ToString(@DecimalFormat);
+                                            if (Value == "0.00")
+                                                Value = string.Empty;
+                                            @if (AccName.AccountName == "Opening Balance Adjustment")
+                                            {
+                                                <span>@Value</span>
+                                            }
+                                            else if ((AccName.VoucherEntry == 0))
+                                            {
+                                                <span style="font-weight:bold;">@Value</span>
+                                            }
+                                            else
+                                            {
+                                                <span>@Value</span>
+                                            }
+                                        }
+                                    </Template>
+                                </GridColumn>
+                                <GridColumn Field="@nameof(TrialBal.Cr)" HeaderText=@Localizer["Balance Credit"] Width="120px" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Format="@DecimalFormat">
+                                    <Template>
+                                        @{
+
+                                            var AccName = (context as TrialBal);
+                                            string Value = (Convert.ToDecimal(AccName.Cr)).ToString(@DecimalFormat);
+                                            if (Value == "0.00")
+                                                Value = string.Empty;
+                                            @if (AccName.AccountName == "Opening Balance Adjustment")
+                                            {
+                                                <span>@Value</span>
+                                            }
+                                            else if ((AccName.VoucherEntry == 0))
+                                            {
+                                                <span style="font-weight:bold;">@Value</span>
+                                            }
+                                            else
+                                            {
+                                                <span>@Value</span>
+                                            }
+                                        }
+                                    </Template>
+                                </GridColumn>
+
+                            </GridColumns>
+                            <GridAggregates>
+                                <GridAggregate>
+                                    <GridAggregateColumns>
+                                        <GridAggregateColumn Field=@nameof(TrialBal.Debit) Type="AggregateType.Custom" Format="@DecimalFormat">
+                                            <FooterTemplate>
+                                                @{
+
+                                                    <div>
+                                                        <p>@GetWeightedAggregate("Debit")</p>
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </GridAggregateColumn>
+                                        <GridAggregateColumn Field=@nameof(TrialBal.Credit) Type="AggregateType.Custom" Format="@DecimalFormat">
+                                            <FooterTemplate>
+                                                @{
+                                                    <div>
+                                                        <p>@GetWeightedAggregate("Credit")</p>
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </GridAggregateColumn>
+                                        <GridAggregateColumn Field=@nameof(TrialBal.OpCr) Type="AggregateType.Custom" Format="@DecimalFormat">
+                                            <FooterTemplate>
+                                                @{
+                                                    <div>
+                                                        <p>@GetWeightedAggregate("OpCredit")</p>
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </GridAggregateColumn>
+                                        <GridAggregateColumn Field=@nameof(TrialBal.OpDr) Type="AggregateType.Custom" Format="@DecimalFormat">
+                                            <FooterTemplate>
+                                                @{
+                                                    <div>
+                                                        <p>@GetWeightedAggregate("OpDebit")</p>
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </GridAggregateColumn>
+                                        <GridAggregateColumn Field=@nameof(TrialBal.Cr) Type="AggregateType.Custom" Format="@DecimalFormat">
+                                            <FooterTemplate>
+                                                @{
+                                                    <div>
+                                                        <p>@GetWeightedAggregate("TotalCredit")</p>
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </GridAggregateColumn>
+                                        <GridAggregateColumn Field=@nameof(TrialBal.Dr) Type="AggregateType.Custom" Format="@DecimalFormat">
+                                            <FooterTemplate>
+                                                @{
+                                                    <div>
+                                                        <p>@GetWeightedAggregate("TotalDebit")</p>
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </GridAggregateColumn>
+
+                                    </GridAggregateColumns>
+                                </GridAggregate>
+                            </GridAggregates>
+                            @if (Isload)
+                            {
+                                <svg width="2500" height="2500" viewBox="126.444 2.281 589 589"><image href="gif/loading-waiting.gif" height="590px" width="770px" /></svg>
+                            }
+                        </SfGrid>
+
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code
+{
+    [Parameter]
+    public string Query { get; set; }
+    private bool Opening = false;
+    private bool Detailed = false;
+    int user, BranchID, AccountID, ID;
+    public string Name, Remarks, FD, TD, FinYear;
+    public bool Isload = false;
+    DateTime SDate = DateTime.Now, EDate = DateTime.Now;
+    SfGrid<TrialBal> Grid { get; set; }
+    public List<TrialBal> dataSource { get; set; }
+    List<TrialBal> Stmt = new List<TrialBal>();
+    public IList<string> Year = new List<string>();
+    public int ShowRow { get; set; } = 1;
+    bool allBranches = false;
+    IList<ParentLevel> levels = new List<ParentLevel>();
+    private int leastLevel;
+    private bool downloading = false;
+    public class User
+    {
+        public string? user { get; set; }
+        public int? Id { get; set; }
+    }
+
+    private string GridHeight = "500px";
+    public string? DecimalFormat { get; set; }
+    private Dictionary<string, object> ClearFilter = new Dictionary<string, object>()
+    {
+        { "title", "Clear Filter"}
+    };
+
+    public async Task GetSessionDetails()
+    {
+        BranchID = await _sessionStorage.GetItemAsync<int>("BranchID");
+        user = await _sessionStorage.GetItemAsync<int>("UserID");
+        AccountID = await _sessionStorage.GetItemAsync<int>("AccountID");
+        await FinancialDateService.InitializeDates();
+    }
+    public async Task SetGridFormatAndStyle()
+    {
+        DecimalFormat = globalService.GlobalCurrencyFormat == null ? "0.00" : globalService.GlobalCurrencyFormat;
+        var dimension = await IJS.InvokeAsync<WindowDimension>("getWindowDimensions");
+        GridHeight = (dimension.Height - 180).ToString() + "px";
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Isload = true;
+        try
+        {
+            await GetSessionDetails();
+            await SetGridFormatAndStyle();
+            if (user == 0) { uriHelper.NavigateTo(await _UserRights.GetURl("Logout", AccountID)); }
+
+            levels = (await _IInvAccounts.GetLevels()).ToList();
+
+            if (globalService.TrialBalanceDetailed.Count() > 0)
+            {
+                Stmt = globalService.TrialBalanceDetailed;
+                dataSource = Stmt;
+                await Grid.Refresh();
+            }
+        }
+        finally
+        {
+            Isload = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+    public async Task Search_Click()
+    {
+        Isload = true;
+        var open = 0;
+        SDate = FinancialDateService.StartDate;
+        EDate = FinancialDateService.EndDate;
+        FD = SDate.Month.ToString("00") + "-" + SDate.Day.ToString("00") + "-" + SDate.Year;
+        TD = EDate.Month.ToString("00") + "-" + EDate.Day.ToString("00") + "-" + EDate.Year;
+        if (Opening == true)
+        {
+            open = 1;
+        }
+        else
+        {
+            open = 0;
+        }
+        dataSource = (await _IAccStmt.ShowTBDetailed(BranchID, FD.ToString(), TD.ToString(), open.ToString())).ToList();
+        // foreach (var item in dataSource)
+        // {
+        //     if (item.ID == -1)
+        //     { item.ID = 0; }
+        //     if (item.ParentID == -1 || item.ParentID == 0)
+        //     { item.ParentID = null; }
+        // }
+
+        if (Detailed != true)
+            Stmt = dataSource;
+        else
+            Stmt = new(dataSource.Where(x => x.VoucherEntry == 0 && x.ShowRow == true).Cast<TrialBal>());
+        // Stmt = Stmt.OrderBy(x => x.SortField).ToList();
+        globalService.TrialBalanceDetailed = Stmt;
+        await Grid.Refresh();
+        Isload = false;
+        await InvokeAsync(StateHasChanged);
+    }
+    private void onChange(Microsoft.AspNetCore.Components.ChangeEventArgs args)
+    {
+        if (dataSource != null)
+        {
+            if (Detailed != true)
+                Stmt = dataSource;
+            else
+                Stmt = new(dataSource.Where(x => x.VoucherEntry == 0 && x.ShowRow == true).Cast<TrialBal>());
+            Stmt = Stmt.OrderBy(x => x.SortField).ToList();
+        }
+    }
+    public void OnRowSelected(RowSelectEventArgs<TrialBal> args)
+    {
+        Grid.PreventRender(true);
+
+        if (args != null)
+        {
+            var ID = args.Data.ID;
+            FD = SDate.Month.ToString("00") + "-" + SDate.Day.ToString("00") + "-" + SDate.Year;
+            TD = EDate.Month.ToString("00") + "-" + EDate.Day.ToString("00") + "-" + EDate.Year;
+            var Query = BranchID + "," + FD + "," + TD + "," + ID;
+            string url = "StatementDetails/" + Query;
+            IJS.InvokeAsync<object>("open", url, "_blank");
+        }
+
+    }
+    public async Task ExcelExport()
+    {
+        try
+        {
+            downloading = true;
+            await InvokeAsync(StateHasChanged);
+            await Task.Delay(100);
+            ExcelExportProperties exportProperties = new ExcelExportProperties
+             {
+                 IncludeTemplateColumn = true,
+                 FileName ="TrialBalanceDetailed.xlsx",  
+            };
+            await this.Grid.ExportToExcelAsync(exportProperties);
+
+        }
+        catch (Exception ex)
+        {
+
+            throw ex;
+        }
+        finally
+        {
+            downloading = false;
+            await InvokeAsync(StateHasChanged);
+
+        }
+
+    }
+    public List<ExpandoObject> companyDetails = new List<ExpandoObject>();
+    public async Task ExportPdf()
+    {
+        try
+        {
+            downloading = true;
+            List<JSReportParameter> parameters = new List<JSReportParameter>()
+            {
+                new JSReportParameter()
+                {
+                    Name = "DateFrom",
+                    Values = new List<string>(){ SDate.ToString() }
+                },
+                new JSReportParameter()
+                {
+                    Name = "DateUpto",
+                    Values = new List<string>(){ EDate.ToString() }
+                }
+            };
+            var data = await Grid.GetFilteredRecordsAsync();
+            var dataList = new List<object>();
+
+            if (data is IEnumerable<object> enumerableData)
+            {
+                foreach (var item in enumerableData)
+                {
+                    dataList.Add(item);
+                }
+            }
+            else
+            {
+                dataList.Add(data);
+            }
+            companyDetails = new List<ExpandoObject>();
+            companyDetails = await _ICompanyManager.GetCompanyDetails(BranchID);
+            DataSource dt = new DataSource
+                {
+                    Parameters = new List<JSReportParameter>
+                {
+                    new JSReportParameter
+                    {
+                        Name = "DateFrom",
+                        Values = new List<string> { SDate.ToString() }
+                    },
+                    new JSReportParameter
+                    {
+                        Name = "DateUpto",
+                        Values = new List<string> { EDate.ToString() }
+                    },
+                    new JSReportParameter
+                    {
+                        Name = "debitSum",
+                        Values = new List<string> { debitSum.ToString() }
+                    },
+                    new JSReportParameter
+                    {
+                        Name = "creditSum",
+                        Values = new List<string> { creditSum.ToString() }
+                    },
+                    new JSReportParameter
+                    {
+                        Name = "opCreditSum",
+                        Values = new List<string> { opCreditSum.ToString() }
+                    },
+                    new JSReportParameter
+                    {
+                        Name = "opDebitSum",
+                        Values = new List<string> { opDebitSum.ToString() }
+                    },
+                    new JSReportParameter
+                    {
+                        Name = "TDebitSum",
+                        Values = new List<string> { TDebitSum.ToString() }
+                    },
+                    new JSReportParameter
+                    {
+                        Name = "TCreditSum",
+                        Values = new List<string> { TCreditSum.ToString() }
+                    }
+                }
+                };
+            dt.DataSet1 = new List<ExpandoObject>();
+            dt.DataSet2 = new List<ExpandoObject>();
+            dt.ReportName = "Trail Balance Detailed";
+            dt.DataSet1 = JsonConvert.DeserializeObject<List<ExpandoObject>>(JsonConvert.SerializeObject(dataList));
+            dt.DataSet2 = JsonConvert.DeserializeObject<List<ExpandoObject>>(JsonConvert.SerializeObject(companyDetails));
+            dt.DataSet3 = JsonConvert.DeserializeObject<List<ExpandoObject>>(JsonConvert.SerializeObject(dataSource));
+            if (dt.ReportName != "")
+            {
+                var Result = await _BoldReport.GetReport(dt);
+                var filename = dt.ReportName + ".pdf";
+                await IJS.InvokeVoidAsync("jsSaveAsFile", filename, Convert.ToBase64String(Result.ToArray()));
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+        finally
+        {
+            downloading = false;
+        }
+
+
+    }
+    public string? debitSum { get; set; }
+    public string? creditSum { get; set; } 
+    public string? opDebitSum { get; set; }
+    public string? opCreditSum { get; set; }
+    public string? TDebitSum { get; set; }
+    public string? TCreditSum { get; set; }
+    public string? balance { get; set; }
+    public string GetWeightedAggregate(string dataField)
+    {
+        if (dataField == "Debit")
+        {
+            var result = decimal.Parse(Queryable.Sum(dataSource.Where(x => x.VoucherEntry == 1).Select(x => x.Debit).AsQueryable()).ToString()).ToString(@DecimalFormat);
+            debitSum = result;
+            return result.ToString();
+        }
+        else if (dataField == "Credit")
+        {
+            var result = decimal.Parse(Queryable.Sum(dataSource.Where(x => x.VoucherEntry == 1).Select(x => x.Credit).AsQueryable()).ToString()).ToString(@DecimalFormat);
+            creditSum = result;
+            return result.ToString();
+        }
+        else if (dataField == "OpDebit")
+        {
+            opDebitSum = decimal.Parse(Queryable.Sum(dataSource.Where(x => x.VoucherEntry == 1).Select(x => x.OpDr).AsQueryable()).ToString()).ToString(@DecimalFormat);
+            return opDebitSum.ToString();
+        }
+        else if (dataField == "OpCredit")
+        {
+            opCreditSum = decimal.Parse(Queryable.Sum(dataSource.Where(x => x.VoucherEntry == 1).Select(x => x.OpCr).AsQueryable()).ToString()).ToString(@DecimalFormat);
+            return opCreditSum.ToString();
+        }
+        else if (dataField == "TotalDebit")
+        {
+            var dr = Convert.ToDecimal(decimal.Parse(Queryable.Sum(dataSource.Where(x => x.VoucherEntry == 1).Select(x => x.Dr).AsQueryable()).ToString()).ToString(@DecimalFormat));
+            TDebitSum = (dr).ToString();
+            return TDebitSum;
+        }
+        else if (dataField == "TotalCredit")
+        {
+            var cr = Convert.ToDecimal(decimal.Parse(Queryable.Sum(dataSource.Where(x => x.VoucherEntry == 1).Select(x => x.Cr).AsQueryable()).ToString()).ToString(@DecimalFormat));
+            TCreditSum = (cr).ToString();
+            return TCreditSum.ToString();
+        }
+        else
+        {
+            return "0.00";
+        }
+
+    }
+    public async Task viewStatement(int? Id)
+    {
+        string FDate = SDate.Month.ToString("00") + "-" + SDate.Day.ToString("00") + "-" + SDate.Year;
+        string TDate = EDate.Month.ToString("00") + "-" + EDate.Day.ToString("00") + "-" + EDate.Year;
+        uriHelper.NavigateTo(uriHelper.BaseUri + $"StatementDetails/{Id}/{FDate}/{TDate}");
+    }
+
+    SfTextBox search;
+    public void OnInput(InputEventArgs args)
+    {
+        this.Grid.SearchAsync(args.Value);
+        this.StateHasChanged();
+    }
+    public bool ShowSelectAllCheckBox { get; set; } = true;
+    public bool EnableSelectionOrders { get; set; } = true;
+    public bool EnableDropDownIcon { get; set; } = true;
+    private bool CheckSelectAll { get; set; } = true;
+    private bool DropDownButton { get; set; } = true;
+    private bool SelectionReorder { get; set; } = true;
+    public void OnSelectAllChange(Syncfusion.Blazor.Buttons.ChangeEventArgs<bool> args)
+    {
+        this.ShowSelectAllCheckBox = args.Checked;
+    }
+    public void OnDropDownButtonChange(Syncfusion.Blazor.Buttons.ChangeEventArgs<bool> args)
+    {
+        this.EnableDropDownIcon = args.Checked;
+    }
+    public void OnSeletionReorder(Syncfusion.Blazor.Buttons.ChangeEventArgs<bool> args)
+    {
+        this.EnableSelectionOrders = args.Checked;
+    }
+    public string[] selectedLevel { get; set; }
+    private void ValueChangeHandlerLevels(MultiSelectChangeEventArgs<string[]> args)
+    {
+        try
+        {
+            if (selectedLevel != null)
+                Array.Clear(selectedLevel, 0, selectedLevel.Length);
+            selectedLevel = args.Value;
+            filterLevelWise(selectedLevel);
+            Stmt = Stmt.OrderBy(x => x.SortField).ToList();
+
+        }
+        catch (Exception e)
+        {
+
+            throw e;
+        }
+
+    }
+    public string[] usersToBeHidden { get; set; }
+    private void ValueChangeHandlerHideAccounts(MultiSelectChangeEventArgs<string[]> args)
+    {
+        try
+        {
+            if (usersToBeHidden != null)
+                Array.Clear(usersToBeHidden, 0, usersToBeHidden.Length);
+            usersToBeHidden = addAccountCategory(args.Value);
+            hideAccounts(usersToBeHidden);
+            Stmt = Stmt.OrderBy(x => x.SortField).ToList();
+
+        }
+        catch (Exception e)
+        {
+
+            throw e;
+        }
+
+    }
+    public List<User> users = new List<User>()
+    {
+        new User {user = "Parent & Students", Id = 1},
+        new User {user = "Suppliers", Id = 2},
+        new User {user = "Staff", Id = 3},
+        new User {user = "Customers", Id = 4},
+    };
+    public string[] addAccountCategory(string[] value)
+    {
+        List<string> category = new List<string>();
+        if (value != null)
+        {
+            if (value.Contains("1"))
+            {
+                category.Add("10");
+                category.Add("12");
+            }
+            if (value.Contains("2"))
+            {
+                category.Add("3");
+            }
+            if (value.Contains("3"))
+            {
+                category.Add("4");
+            }
+            if (value.Contains("4"))
+            {
+                category.Add("2");
+            }
+        }
+        return category.ToArray();
+    }
+    public void hideAccounts(string[]? Value)
+    {
+        if (dataSource != null && dataSource.Count() > 0)
+        {
+            if (Value != null && selectedLevel != null)
+
+                Stmt = dataSource.Where(x => !Value.Contains(x.AcccategoryID.ToString()))
+                                 .Where(x => selectedLevel.Contains(x.ParentLevel.ToString())).ToList();
+            else if (Value != null)
+                Stmt = dataSource.Where(x => !Value.Contains(x.AcccategoryID.ToString())).ToList();
+            else if (selectedLevel != null)
+                Stmt = dataSource.Where(x => selectedLevel.Contains(x.ParentLevel.ToString())).ToList();
+            else
+                Stmt = dataSource;
+        }
+    }
+    public void filterLevelWise(string[]? Value)
+    {
+        if (dataSource != null && dataSource.Count() > 0)
+        {
+            if (Value != null && usersToBeHidden != null)
+                Stmt = dataSource.Where(x => Value.Contains(x.ParentLevel.ToString()))
+                                 .Where(x => !usersToBeHidden.Contains(x.AcccategoryID.ToString())).ToList();
+            else if (Value != null)
+                Stmt = dataSource.Where(x => Value.Contains(x.ParentLevel.ToString())).ToList();
+            else if (usersToBeHidden != null)
+                Stmt = dataSource.Where(x => !usersToBeHidden.Contains(x.AcccategoryID.ToString())).ToList();
+            else
+                Stmt = dataSource;
+        }
+    }
+    public void OnRowDataBound(RowDataBoundEventArgs<TrialBal> args)
+    {
+        if (args.Data.VoucherEntry == 0)
+        {
+            string[] a = { "row-with-line" };
+            args.Row.AddClass(a); // Apply the CSS class for rows that match the condition
+        }
+    }
+    public void ExcelAggregateTemplateInfoHandler(Syncfusion.Blazor.Grids.ExcelAggregateEventArgs args)
+
+    {
+
+        if (args.Column.Field == "Debit")
+        {
+
+            args.Cell.Value = debitSum;
+
+        }
+
+        if (args.Column.Field == "Credit")
+        {
+
+            args.Cell.Value = creditSum;
+
+        }
+
+
+        if (args.Column.Field == "OpCr")
+        {
+
+            args.Cell.Value = opCreditSum;
+
+        }
+
+        if (args.Column.Field == "OpDr")
+        {
+
+            args.Cell.Value = opDebitSum;
+
+        }
+
+        if (args.Column.Field == "Cr")
+        {
+
+            args.Cell.Value = TCreditSum;
+
+        }
+        if (args.Column.Field == "Dr")
+        {
+
+            args.Cell.Value = TDebitSum;
+
+        }
+
+    }
+    public async Task Clear_Click()
+    {
+        await Grid!.SearchAsync("");
+        await Grid.ClearFilteringAsync();
+
+    }
+}

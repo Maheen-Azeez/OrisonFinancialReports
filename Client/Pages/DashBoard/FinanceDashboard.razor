@@ -1,0 +1,1541 @@
+﻿@page "/Financedashboard"
+@using OrisonMIS.Client.Logics.Contract.DashBoard
+@using Syncfusion.Blazor
+@using Syncfusion.Blazor.Layouts
+@using Syncfusion.Blazor.Buttons
+@using Syncfusion.Blazor.Charts
+@using Syncfusion.Blazor.Grids
+@using System.Globalization;
+@using System.Net.Http;
+@using Syncfusion.Blazor.DropDowns
+@using Syncfusion.Blazor.Calendars
+@using Syncfusion.Blazor.ProgressBar
+@using System.Collections.ObjectModel
+@using System.Timers;
+@using Syncfusion.Blazor.Spinner;
+@using Syncfusion.Blazor.Popups
+@using OrisonMIS.Shared.Entities.General;
+@using OrisonMIS.Shared.Entities.DashBoard;
+@using Newtonsoft.Json;
+@using Newtonsoft.Json.Linq;
+@inject NavigationManager NavManager
+@inject OrisonMIS.Client.Services.UserRightsService _UserRights
+@inject OrisonMIS.Client.Logics.Contract.General.IUserLoginManager _IUserLoginManager
+@inject NavigationManager NavigationManager
+@inject Blazored.SessionStorage.ISessionStorageService localStorage
+@inject OrisonMIS.Client.Services.FinServices FinServ
+
+<head>
+    <link href="css/OrisonSyncfusionStyles.css" rel="stylesheet" />
+</head>
+<div class="box-card-shadow">
+    <div class="row">
+        <div class="col-md-2">
+            <SfMultiSelect TValue="string[]" TItem="Branch" Placeholder="Branch" Mode="VisualMode.CheckBox" DataSource="@Branchlist" ShowSelectAll=true>
+                <MultiSelectEvents TItem="Branch" TValue="string[]" ValueChange="@ValueChangeHandler"></MultiSelectEvents>
+                <MultiSelectFieldSettings Value="Code" Text="Name"></MultiSelectFieldSettings>
+            </SfMultiSelect>
+            <span class="text-muted">@branchstr</span>
+        </div>
+        <div class="col-md-2">
+            <SfDatePicker TValue="DateTime?" Value='@DateValue' Format='dd-MM-yyyy' Placeholder="From">
+                <DatePickerEvents TValue="DateTime?" ValueChange="@onChange"></DatePickerEvents>
+            </SfDatePicker>
+        </div>
+        <div class="col-md-2">
+            <SfDatePicker TValue="DateTime?" Value='@DateToValue' Format='dd-MM-yyyy' Placeholder="To">
+                <DatePickerEvents TValue="DateTime?" ValueChange="@onToChange"></DatePickerEvents>
+            </SfDatePicker>
+        </div>
+        <div class="col-md-2">
+            <SfButton ID="button" Content="Show" @onclick="@Show" IsPrimary="true" CssClass="btn" IconCss="Icon search"></SfButton>
+        </div>
+        <div class="col-md-2">
+
+
+            @if (VisibleProperty)
+            {
+                <img src="gif/loading-waiting.gif" style="padding-left:2px; width: 20px; height: 20px;" />
+            }
+
+
+        </div>
+    </div>
+</div>
+<label for="Name" class="control-label">@Classname</label>
+@*<h6>&nbsp;</h6>*@
+@*<div class="control-section" id="target">*@
+<div class="box-card-shadow">
+    <div class="row">
+        <div class="col-md-3">
+            <div class="small-box" style="background-color: #abec6c;color:white;">
+
+                <div class="item-container income " style="color:white;">
+
+                    @if (revlistall != null && revlistall.Count() > 0)
+                    {
+                        @*<p> @Math.Round(revlist.Sum(p=> p.Balance))  </p>*@
+                        @Revenuestr
+                    }
+                    <div class="auto-left">
+                        <span class="income-icon e-icon text-xl" style="color:white;"></span>
+
+                    </div>
+
+                </div>
+                <div class="bottom-container" style="color:white;">
+
+                    Revenue
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            @*</ContentTemplate>
+            </DashboardLayoutPanel>*@
+            @*<DashboardLayoutPanel Column="2" Row="0" SizeX="2" SizeY="1">
+            <ContentTemplate>*@
+            <div class="small-box" style="background-color: #fa6775;color:white;">
+                <div class="item-container income" style="color:white;">
+
+                    @*@if (gridlist != null && gridlist.GetEnumerator().MoveNext())*@
+                    @if (banklistall != null && banklistall.Count() > 0)
+                    {
+
+                        @*@banklist.Sum(p => p.Amount)*@
+                        @BankBalstr
+
+                    }
+
+                    <div class="auto-left" style="color:white;">
+                        <span class="expense-icon e-icon text-xl"></span>
+                    </div>
+                </div>
+                <div class="bottom-container" style="color:white;">
+
+                    Bank Balance
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            @*</ContentTemplate>
+            </DashboardLayoutPanel>
+            <DashboardLayoutPanel Column="4" Row="0" SizeX="2" SizeY="1">
+            <ContentTemplate>*@
+            <div class="small-box" style="background-color: #f8a3c4;color:white;">
+                <div class="item-container income" style="color:white;">
+
+                    @if (fundlistall != null && fundlistall.Count() > 0)
+                    {
+                        @*@gridlist.ElementAtOrDefault(0).TotalLate;*@
+                        @*@gridlist.Sum(p => Convert.ToInt32(p.TotalLate))*@
+                        @*@Math.Round(fundlist.Sum(p => p.InFlow))*@
+                        @InFlowstr
+                    }
+
+                    <div class="auto-left" style="color:white;">
+                        <span class="balance-icon e-icon text-xl"></span>
+                    </div>
+                </div>
+                <div class="bottom-container" style="color:white;">
+                    Cash InFlow
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            @*</ContentTemplate>
+            </DashboardLayoutPanel>
+            <DashboardLayoutPanel Column="4" Row="0" SizeX="2" SizeY="1">
+            <ContentTemplate>*@
+            <div class="small-box" style="background-color: #a16ee5;color:white;">
+                <div class="item-container income" style="color:white;">
+
+                    @if (fundlistall != null && fundlistall.Count() > 0)
+                    {
+
+                        @*@Math.Round(fundlist.Sum(p => p.OutFlow))*@
+                        @OutFlowstr
+                    }
+
+                    <div class="auto-left" style="color:white;">
+                        <span class="transaction-icon e-icon text-xl"></span>
+                    </div>
+                </div>
+                <div class="bottom-container" style="color:white;">
+                    Cash OutFlow
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div class="box-card-shadow">
+
+    <div class="row">
+
+        <div class="col-md-7">
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-chart-pie mr-1"></i>
+                        FundFlow
+                    </h3>
+                    <div class="card-tools">
+                        <ul class="nav nav-pills ml-auto">
+                            <li class="nav-item">
+                                <a class="nav-link active" href="#revenue-chart" data-toggle="tab">Bar Chart</a>
+                                @*<a class="nav-link active" href="#revenue-chart" data-toggle="tab">Class wise how many students horizontal chart</a>*@
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#sales-chart" data-toggle="tab">Outflow </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#sales-chartn" data-toggle="tab">Inflow </a>
+                            </li>
+                            <li class="nav-item">
+                                <button type="button" class="btn btn-tool" @onclick="ShowFundDialog" title="View Grid">
+                                    <i class="fa fa-ellipsis-h"></i>
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="card-body" style="padding: 0px;border:none;">
+                    <div class="tab-content p-0" style="padding:0px;">
+                        <!-- Morris chart - Sales -->
+                        <div class="chart tab-pane active" id="revenue-chart"
+                             style=" height: 300px;padding:0px;">
+                            @*<canvas id="revenue-chart-canvas" height="300" style="height: 300px;"></canvas>*@
+                            @*@if (fundlistall != null)
+                            {*@
+                            <SfChart @ref="Chartobj">
+                                <ChartPrimaryXAxis ValueType="Syncfusion.Blazor.Charts.ValueType.Category" Title="Fund Name"></ChartPrimaryXAxis>
+                                <ChartPrimaryYAxis ValueType="Syncfusion.Blazor.Charts.ValueType.Category" Title="InFlow & OutFlow"></ChartPrimaryYAxis>
+                                <ChartZoomSettings EnableMouseWheelZooming="true" EnablePinchZooming="true" EnableSelectionZooming="true"></ChartZoomSettings>
+                                <ChartTooltipSettings Enable="true"></ChartTooltipSettings>
+                                <ChartSeriesCollection>
+                                    <ChartSeries DataSource="@fundlistall" Name="InFlow" XName="AccountName" Width="2" Opacity="1" YName="InFlow" Type="ChartSeriesType.Column">
+                                    </ChartSeries>
+                                    <ChartSeries DataSource="@fundlistall" Name="OutFlow" XName="AccountName" Width="2" Opacity="1" YName="OutFlow" Type="ChartSeriesType.Column">
+                                    </ChartSeries>
+
+                                </ChartSeriesCollection>
+                                <ChartLegendSettings Visible="true" />
+                            </SfChart>
+                            <!--<SfChart Title="Finance" Width="@Width">-->
+                            @*<ChartArea><ChartAreaBorder Width="0"></ChartAreaBorder></ChartArea>*@
+                            <!--<ChartPrimaryXAxis ValueType="Syncfusion.Blazor.Charts.ValueType.Category" Interval="1">-->
+                            @*<ChartAxisMajorGridLines Width="0"></ChartAxisMajorGridLines>
+                            <ChartAxisMajorTickLines Width="0"></ChartAxisMajorTickLines>*@
+                            <!--</ChartPrimaryXAxis>-->
+                            @*<ChartPrimaryYAxis Title="Amount" Maximum="150" Interval="10" LabelFormat="{value}">
+                            <ChartAxisMajorTickLines Width="0"></ChartAxisMajorTickLines>
+                            <ChartAxisLineStyle Width="0"></ChartAxisLineStyle>
+                            </ChartPrimaryYAxis>*@
+                            <!--<ChartSeriesCollection>
+
+
+                                <ChartSeries TooltipMappingName="MappingName" PointColorMapping="Color" DataSource="@fundlistall" XName="AccountName" YName="InFlow" Name="CashInflow" ColumnSpacing="0.1" Type="ChartSeriesType.Column">
+                                    <ChartMarker>
+                                        <ChartDataLabel Visible="true" Position="Syncfusion.Blazor.Charts.LabelPosition.Top">
+                                            <ChartDataLabelFont FontWeight="600" Color="#ffffff"></ChartDataLabelFont>
+                                        </ChartDataLabel>
+                                    </ChartMarker>
+                                </ChartSeries>
+                                <ChartSeries TooltipMappingName="MappingName" PointColorMapping="Color" DataSource="@fundlistall" XName="AccountName" YName="OutFlow" Name="CashOutFlow" ColumnSpacing="0.1" Type="ChartSeriesType.Column">
+                                    <ChartMarker>
+                                        <ChartDataLabel Visible="true" Position="Syncfusion.Blazor.Charts.LabelPosition.Top">
+                                            <ChartDataLabelFont FontWeight="600" Color="#ffffff"></ChartDataLabelFont>
+                                        </ChartDataLabel>
+                                    </ChartMarker>
+                                </ChartSeries>
+                            </ChartSeriesCollection>-->
+                            @*<ChartLegendSettings Visible="true" EnableHighlight="true"></ChartLegendSettings>*@
+                            <!--<ChartTooltipSettings Header="<b>${point.tooltip}</b>" Enable="true" Shared="true"></ChartTooltipSettings>
+                            </SfChart>-->
+                            @*}*@
+                        </div>
+                        <SfDialog Target="#targetNoData" Width="700px" ShowCloseIcon="true" @bind-Visible="VisibilityNoData" AllowPrerender="true" IsModal="true">
+                            <DialogTemplates>
+                                <Header>Fund Flow</Header>
+                                <Content>
+                                    <span class="info-box-icon bg-info elevation-1"><i class="fas fa-cog"></i></span>
+                                    No Data to Display!!
+                                </Content>
+                            </DialogTemplates>
+                        </SfDialog>
+                        <div class="chart tab-pane" id="sales-chart" style="padding-left: 0px; text-align: left; height: 300px;">
+                            <SfDialog Target="#targetFund" Width="700px" ShowCloseIcon="true" @bind-Visible="VisibilityFund" AllowPrerender="true" IsModal="true">
+                                <DialogTemplates>
+                                    <Header>Fund Flow</Header>
+                                    <Content>
+                                        <SfGrid TValue="FundFlow" GridLines="GridLine.Both" @ref="GridFundFlow" DataSource="@fundlistall" AllowTextWrap="true"
+                                                AllowFiltering="true" AllowSorting="true" EnableHover="false" AllowPaging="false" Width="100%" AllowExcelExport="true">
+
+                                            <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.CheckBox"></GridFilterSettings>
+                                            <GridColumns>
+                                                <GridColumn Field="@nameof(FundFlow.SchoolCode)" AllowFiltering="true" HeaderText="School"></GridColumn>
+                                                <GridColumn Field="@nameof(FundFlow.AccountName)" AllowFiltering="true" HeaderText="Fund"></GridColumn>
+                                                <GridColumn Field="@nameof(FundFlow.InFlow)" AllowFiltering="true" HeaderText="InFlow"></GridColumn>
+                                                <GridColumn Field="@nameof(FundFlow.OutFlow)" AllowFiltering="true" HeaderText="OutFlow"></GridColumn>
+                                            </GridColumns>
+                                        </SfGrid>
+                                    </Content>
+                                </DialogTemplates>
+                            </SfDialog>
+                            @*<canvas id="sales-chart-canvas" height="300" style="height: 300px;"></canvas>*@
+                            @if ((fundlistall != null) && (fundlistall.Count() > 0))
+                            {
+
+
+                                <SfAccumulationChart Title="Fund OutFlow">
+                                    <AccumulationChartLegendSettings Visible="false"></AccumulationChartLegendSettings>
+
+                                    <AccumulationChartSeriesCollection>
+                                        <AccumulationChartSeries DataSource="@fundlistall" XName="AccountName" YName="OutFlow"
+                                                                 Name="AccountName" Type="AccumulationType.Funnel" Width="40%" Height="50%">
+                                            <AccumulationDataLabelSettings Visible="true" Name="OutFlow" Position="AccumulationLabelPosition.Inside">
+
+                                            </AccumulationDataLabelSettings>
+                                        </AccumulationChartSeries>
+                                    </AccumulationChartSeriesCollection>
+                                    <AccumulationChartTooltipSettings Enable="true"></AccumulationChartTooltipSettings>
+                                </SfAccumulationChart>
+
+
+
+                            }
+                        </div>
+                        <div class="chart tab-pane" id="sales-chartn" style="text-align:left;">
+                            @*<canvas id="sales-chart-canvas" height="300" style="height: 300px;"></canvas>*@
+                            @if ((fundlistall != null) && (fundlistall.Count() > 0))
+                            {
+
+                                <SfAccumulationChart Height="300" EnableAnimation="true" EnableSmartLabels="true" Title="Fund InFlow">
+                                    <AccumulationChartSeriesCollection>
+                                        <AccumulationChartSeries DataSource="@fundlistall" XName="AccountName" YName="InFlow" Name="AccountName" Radius="83%" StartAngle="0" EndAngle="360" InnerRadius="70%">
+                                            <AccumulationDataLabelSettings Visible="true" Name="InFlow" Position="AccumulationLabelPosition.Inside">
+
+                                                <AccumulationChartConnector Length="10%"></AccumulationChartConnector>
+                                                <AccumulationChartDataLabelFont Size="14px" FontFamily="Roboto"></AccumulationChartDataLabelFont>
+
+                                            </AccumulationDataLabelSettings>
+                                            <AccumulationChartAnimation Enable="true"></AccumulationChartAnimation>
+                                        </AccumulationChartSeries>
+                                    </AccumulationChartSeriesCollection>
+                                    <AccumulationChartTooltipSettings Enable="true" Header="InFlow"></AccumulationChartTooltipSettings>
+
+                                    <AccumulationChartLegendSettings Visible="true" Description="InFlow"></AccumulationChartLegendSettings>
+                                </SfAccumulationChart>
+
+                            }
+                        </div>
+                    </div>
+                </div><!-- /.card-body -->
+            </div>
+
+
+
+
+        </div>
+
+        <div class="col-md-5">
+            <div class="card">
+
+
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-chart-area mr-1"></i>
+                        <span class="title">
+                            Bank Balance
+
+                        </span>
+                    </h3>
+                    <div class="card-tools">
+                        <ul class="nav nav-pills ml-auto">
+                            <li class="nav-item">
+                                <button type="button" class="btn btn-tool align-content-end text-md-right" @onclick="ShowBankDialog" title="View Grid">
+                                    <i class="fa fa-ellipsis-h"></i>
+                                </button>
+                            </li>
+
+                        </ul>
+                    </div>
+                </div>
+
+                @if ((finlist != null) && (finlist.Count() > 0))
+                {
+
+                    <SfDialog Target="#target" Width="700px" ShowCloseIcon="true" @bind-Visible="Visibility" AllowPrerender="true" IsModal="true">
+                        <DialogTemplates>
+                            <Header> Bank Balance </Header>
+                            <Content>
+                                <SfGrid TValue="BankBalance" GridLines="GridLine.Both" @ref="GridBank" DataSource="@banklistall" AllowTextWrap="true"
+                                        AllowFiltering="true" AllowSorting="true" EnableHover="false" AllowPaging="false" Width="100%" AllowExcelExport="true">
+
+                                    <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.CheckBox"></GridFilterSettings>
+                                    <GridColumns>
+                                        <GridColumn Field="@nameof(BankBalance.SchoolCode)" AllowFiltering="true" HeaderText="School"></GridColumn>
+                                        <GridColumn Field="@nameof(BankBalance.BankName)" AllowFiltering="true" HeaderText="BankName"></GridColumn>
+                                        <GridColumn Field="@nameof(BankBalance.Amount)" AllowFiltering="true" HeaderText="Amount"></GridColumn>
+
+                                    </GridColumns>
+                                </SfGrid>
+                            </Content>
+                        </DialogTemplates>
+                    </SfDialog>
+                    <SfAccumulationChart Height="300" EnableAnimation="true" EnableSmartLabels="true" Title="@branchstr">
+                        <AccumulationChartSeriesCollection>
+                            <AccumulationChartSeries DataSource="@banklistall" XName="BankName" YName="Amount" Name="Amount" Radius="83%" StartAngle="0" EndAngle="360" InnerRadius="50%">
+                                <AccumulationDataLabelSettings Visible="true" Name="SchoolCode" Position="AccumulationLabelPosition.Outside">
+
+                                    <AccumulationChartConnector Length="10%"></AccumulationChartConnector>
+                                    <AccumulationChartDataLabelFont Size="14px" FontFamily="Roboto"></AccumulationChartDataLabelFont>
+
+                                </AccumulationDataLabelSettings>
+                                <AccumulationChartAnimation Enable="true"></AccumulationChartAnimation>
+                            </AccumulationChartSeries>
+                        </AccumulationChartSeriesCollection>
+                        <AccumulationChartTooltipSettings Enable="true" Header="BankName"></AccumulationChartTooltipSettings>
+
+                        <AccumulationChartLegendSettings Visible="true" Description="BankName"></AccumulationChartLegendSettings>
+                    </SfAccumulationChart>
+
+
+                }
+            </div>
+        </div>
+    </div>
+</div>
+<div class="box-card-shadow">
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="row">
+                <div class="col-md-3 col-sm-6 col-12">
+                    <div class="info-box">
+                        <span class="info-box-icon bg-info"><i class="fa fa-check"></i></span>
+
+                        <div class="info-box-content">
+                            <span class="info-box-text">Income</span>
+                            @*@if (gridlist != null && gridlist.Count()>0)
+                            {
+                            <span class="info-box-number">@((gridlist.Sum(p => Convert.ToInt32(p.totalpresent)) * 100)/gridlist.Count()) %</span>
+                            }*@
+                            <span class="info-box-number">@Revenuestr</span>
+                            <div class="">
+                                @*<div class="progress-bar" style="width: 70%"></div>*@
+
+                                <SfProgressBar Height="5" ProgressColor="#dc3545" Value="@Revenueval" TrackThickness="10" Type="ProgressType.Linear" ShowProgressValue="false">
+                                    <ProgressBarAnimation Enable="true" Duration="2000" Delay="0"></ProgressBarAnimation>
+                                </SfProgressBar>
+                            </div>
+                        </div>
+                        <!-- /.info-box-content -->
+                    </div>
+                    <!-- /.info-box -->
+                </div>
+                <!-- /.col -->
+                <div class="col-md-3 col-sm-6 col-12">
+                    <div class="info-box">
+                        <span class="info-box-icon bg-success"><i class="far fa-flag"></i></span>
+
+                        <div class="info-box-content">
+                            <span class="info-box-text">Net Profit</span>
+                            <span class="info-box-number">@NetProfitvalstr</span>
+                            <div class="">
+                                @*<div class="progress-bar" style="width: 70%"></div>*@
+                                <SfProgressBar Height="5" ProgressColor="#dc3545" Value="@NetProfitval" TrackThickness="12" Type="ProgressType.Linear" ShowProgressValue="false">
+                                    <ProgressBarAnimation Enable="true" Duration="2000" Delay="0"></ProgressBarAnimation>
+                                </SfProgressBar>
+                            </div>
+                        </div>
+                        <!-- /.info-box-content -->
+                    </div>
+                    <!-- /.info-box -->
+                </div>
+                <!-- /.col -->
+                <div class="col-md-3 col-sm-6 col-12">
+                    <div class="info-box">
+                        <span class="info-box-icon bg-warning"><i class="far fa-copy"></i></span>
+
+                        <div class="info-box-content">
+                            <span class="info-box-text">Accounts Receivable</span>
+                            <span class="info-box-number">@AccRecValstr</span>
+                            <div class="">
+                                @*<div class="progress-bar" style="width: 70%"></div>*@
+                                <SfProgressBar Height="5" ProgressColor="#dc3545" Value="@AccRecVal" TrackThickness="10" Type="ProgressType.Linear" ShowProgressValue="false">
+                                    <ProgressBarAnimation Enable="true" Duration="2000" Delay="0"></ProgressBarAnimation>
+                                </SfProgressBar>
+                            </div>
+                        </div>
+                        <!-- /.info-box-content -->
+                    </div>
+                    <!-- /.info-box -->
+                </div>
+                <!-- /.col -->
+                <div class="col-md-3 col-sm-6 col-12">
+                    <div class="info-box">
+                        <span class="info-box-icon bg-danger"><i class="far fa-star"></i></span>
+
+                        <div class="info-box-content">
+                            <span class="info-box-text">Accounts Payable</span>
+                            <span class="info-box-number">@AccPayValstr</span>
+
+                            @*<span class="info-box-number"> @gridlist.Sum(p => Convert.ToInt32(p.TotalStudents))</span>*@
+
+                            <div class="">
+                                @*<div class="progress-bar" style="width: 70%"></div>*@
+                                <SfProgressBar Height="5" ProgressColor="#dc3545" Value="@NetProfitval" TrackThickness="10" Type="ProgressType.Linear" ShowProgressValue="false">
+                                    <ProgressBarAnimation Enable="true" Duration="2000" Delay="0"></ProgressBarAnimation>
+                                </SfProgressBar>
+                            </div>
+
+                        </div>
+                        <!-- /.info-box-content -->
+                    </div>
+                    <!-- /.info-box -->
+                </div>
+                <!-- /.col -->
+            </div>
+
+        </div>
+    </div>
+</div>
+
+@if ((finlist != null) && (finlist.Count() > 0))
+{
+    <div class="box-card-shadow">
+
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+
+
+                    <SfChart Title="Finance" Width="@Width">
+                        @*<ChartArea><ChartAreaBorder Width="0"></ChartAreaBorder></ChartArea>*@
+                        <ChartPrimaryXAxis ValueType="Syncfusion.Blazor.Charts.ValueType.Category" Interval="1">
+                            @*<ChartAxisMajorGridLines Width="0"></ChartAxisMajorGridLines>
+                        <ChartAxisMajorTickLines Width="0"></ChartAxisMajorTickLines>*@
+                        </ChartPrimaryXAxis>
+                        @*<ChartPrimaryYAxis Title="Amount" Maximum="150" Interval="10" LabelFormat="{value}">
+                    <ChartAxisMajorTickLines Width="0"></ChartAxisMajorTickLines>
+                    <ChartAxisLineStyle Width="0"></ChartAxisLineStyle>
+                    </ChartPrimaryYAxis>*@
+                        <ChartSeriesCollection>
+                            <ChartSeries TooltipMappingName="MappingName" PointColorMapping="Color" DataSource="@finlist" XName="SchoolCode" YName="Revenue" Name="Revenue" ColumnSpacing="0.1" Type="ChartSeriesType.Column">
+                                <ChartMarker>
+                                    <ChartDataLabel Visible="true" Position="Syncfusion.Blazor.Charts.LabelPosition.Top">
+                                        <ChartDataLabelFont FontWeight="600" Color="#ffffff"></ChartDataLabelFont>
+                                    </ChartDataLabel>
+                                </ChartMarker>
+                            </ChartSeries>
+                            <ChartSeries TooltipMappingName="MappingName" PointColorMapping="Color" DataSource="@finlist" XName="SchoolCode" YName="BankBalance" Name="BankBalance" ColumnSpacing="0.1" Type="ChartSeriesType.Column">
+                                <ChartMarker>
+                                    <ChartDataLabel Visible="true" Position="Syncfusion.Blazor.Charts.LabelPosition.Top">
+                                        <ChartDataLabelFont FontWeight="600" Color="#ffffff"></ChartDataLabelFont>
+                                    </ChartDataLabel>
+                                </ChartMarker>
+                            </ChartSeries>
+                            <ChartSeries TooltipMappingName="MappingName" PointColorMapping="Color" DataSource="@finlist" XName="SchoolCode" YName="CashInflow" Name="CashInflow" ColumnSpacing="0.1" Type="ChartSeriesType.Column">
+                                <ChartMarker>
+                                    <ChartDataLabel Visible="true" Position="Syncfusion.Blazor.Charts.LabelPosition.Top">
+                                        <ChartDataLabelFont FontWeight="600" Color="#ffffff"></ChartDataLabelFont>
+                                    </ChartDataLabel>
+                                </ChartMarker>
+                            </ChartSeries>
+                            <ChartSeries TooltipMappingName="MappingName" PointColorMapping="Color" DataSource="@finlist" XName="SchoolCode" YName="CashOutFlow" Name="CashOutFlow" ColumnSpacing="0.1" Type="ChartSeriesType.Column">
+                                <ChartMarker>
+                                    <ChartDataLabel Visible="true" Position="Syncfusion.Blazor.Charts.LabelPosition.Top">
+                                        <ChartDataLabelFont FontWeight="600" Color="#ffffff"></ChartDataLabelFont>
+                                    </ChartDataLabel>
+                                </ChartMarker>
+                            </ChartSeries>
+                        </ChartSeriesCollection>
+                        @*<ChartLegendSettings Visible="true" EnableHighlight="true"></ChartLegendSettings>*@
+                        <ChartTooltipSettings Header="<b>${point.tooltip}</b>" Enable="true" Shared="true"></ChartTooltipSettings>
+                    </SfChart>
+
+                </div>
+            </div>
+        </div>
+    </div>
+}
+@if (((fundlistall != null) && (fundlistall.Count() > 0)) || ((revlistall != null) && (revlistall.Count() > 0)))
+{
+    <div class="box-card-shadow">
+
+        <div class="row">
+            <div class="col-md-6">
+
+
+                @if ((fundlistall != null) && (fundlistall.Count() > 0))
+                {
+
+                    <SfGrid TValue="FundFlow" @ref="Grid" DataSource="@fundlistall" Width="100%" Height="100%" AllowSorting="true" EnableHover="false">
+                        <GridColumns>
+                            <GridColumn Field="@nameof(FundFlow.SchoolCode)" Width="15%" HeaderText="School">
+                                <Template>
+                                    @{
+                                        var expense = (context as FundFlow);
+                                        <div class="normalRes">
+                                            <span class="text-bold">
+                                                @expense.SchoolCode
+                                            </span>
+                                        </div>
+
+                                    }
+                                </Template>
+                            </GridColumn>
+                            @*<GridColumn Field="@nameof(FundFlow.totalpresent)" HeaderText="Photo" TextAlign="@TextAlign.Left">
+                    <Template>
+                    @{
+                    var expense = (context as FundFlow);
+                    <div class="normalRes">
+                    <span class="badge bg-success">
+                    @expense.totalpresent
+                    </span>
+                    </div>
+
+                    }
+                    </Template>
+                    </GridColumn>
+                    <GridColumn Field="@nameof(ClasswiseDashboard.TotalAbscent)" HeaderText="Name" TextAlign="@TextAlign.Left">
+                    <Template>
+                    @{
+                    var expense = (context as ClasswiseDashboard);
+                    <div class="normalRes">
+                    <span class="badge bg-danger">
+                    @expense.TotalAbscent
+                    </span>
+                    </div>
+
+                    }
+                    </Template>
+                    </GridColumn>*@
+                            @*<GridColumn Field="@nameof(FundFlow.AccountCode)" HeaderText="AccountCode"></GridColumn>*@
+                            <GridColumn Field="@nameof(FundFlow.AccountName)" Width="30%" HeaderText="AccountName">
+                                <Template>
+                                    @{
+                                        var employee = (context as FundFlow);
+                                        //Count++;
+                                        <SfTooltip Target="#txt">
+                                            <TooltipTemplates>
+                                                <Content>
+                                                    @employee.AccountName
+                                                </Content>
+                                            </TooltipTemplates>
+                                            <span id="txt">@employee.AccountName</span>
+                                        </SfTooltip>
+                                    }
+                                </Template>
+
+                            </GridColumn>
+
+                            <GridColumn Field="@nameof(FundFlow.InFlow)" Format="N2" Width="20%" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" HeaderText="InFlow"></GridColumn>
+
+                            <GridColumn Field="@nameof(FundFlow.OutFlow)" Format="N2" Width="20%" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" HeaderText="OutFlow"></GridColumn>
+
+
+                        </GridColumns>
+                    </SfGrid>
+                }
+            </div>
+            <div class="col-md-6">
+                @*<DashboardLayoutPanel Column="0" Row="8" SizeX="4" SizeY="3">
+            <HeaderTemplate>
+            <span class="title">Revenue Register</span>
+            </HeaderTemplate>
+            <ContentTemplate>*@
+
+                @if ((revlistall != null) && (revlistall.Count() > 0))
+                {
+
+                    <SfGrid TValue="Revenue" @ref="GridRev" DataSource="@revlistall" Width="100%" Height="100%" AllowSorting="true" EnableHover="false">
+                        <GridColumns>
+                            <GridColumn Field="@nameof(Revenue.SchoolCode)" Width="15%" HeaderText="School">
+                                <Template>
+                                    @{
+                                        var expense = (context as Revenue);
+                                        <div class="normalRes">
+                                            <span class="text-bold">
+                                                @expense.SchoolCode
+                                            </span>
+                                        </div>
+
+                                    }
+                                </Template>
+                            </GridColumn>
+                            <GridColumn Field="@nameof(Revenue.AccountName)" Width="40%" HeaderText="AccountName">
+                                <Template>
+                                    @{
+                                        var employee = (context as Revenue);
+                                        //Count++;
+                                        <SfTooltip Target="#txt">
+                                            <TooltipTemplates>
+                                                <Content>
+                                                    @employee.AccountName
+                                                </Content>
+                                            </TooltipTemplates>
+                                            <span id="txt">@employee.AccountName</span>
+                                        </SfTooltip>
+                                    }
+                                </Template>
+
+                            </GridColumn>
+                            <GridColumn Field="@nameof(Revenue.Balance)" HeaderText="Amount" Width="25%" Format="N2" HeaderTextAlign="TextAlign.Left" TextAlign="TextAlign.Right">
+                                <Template>
+                                    @{
+                                        var expense = (context as Revenue);
+                                        string type = "";
+                                        @if (expense.Balance < 0)
+                                            type = "Cr";
+                                        else
+                                            type = "Dr";
+
+                                        <div class="normalRes">
+                                            <span class="text-green">
+                                                <i class="fa fa-money" aria-hidden="true"></i>
+                                                @Math.Abs(expense.Balance).ToString("N2")@type
+                                            </span>
+                                        </div>
+
+                                    }
+                                </Template>
+
+                            </GridColumn>
+                            @*<GridColumn Field="@nameof(Revenue.Balance)" HeaderText="Amount"></GridColumn>*@
+
+                        </GridColumns>
+                    </SfGrid>
+                }
+            </div>
+        </div>
+        @*<div class="control-section" align="center">*@
+
+
+    </div>
+}
+
+
+
+@*</div>
+                    </div>
+            </div>
+        </div>*@
+@*</div>*@
+
+@code {
+    private SfChart Chartobj;
+    private SfGrid<FundFlow> Grid;
+    private SfGrid<BankBalance> GridBank;
+    private SfGrid<Revenue> GridRev;
+    private SfGrid<FundFlow> GridFundFlow;
+
+
+    public IEnumerable<AbsentParent> gridlist { get; set; }
+
+    public List<Branch> Branchlist { get; set; }
+    public List<Revenue> revlist { get; set; }
+    public List<BankBalance> banklist { get; set; }
+    public List<FundFlow> fundlist { get; set; }
+
+    public List<Revenue> revlistall { get; set; }
+    public List<BankBalance> banklistall { get; set; }
+    public List<FundFlow> fundlistall { get; set; }
+
+
+    public List<clsNetProfit> NetProfitlist { get; set; }
+    public List<clsAccBalance> AccReclist { get; set; }
+    public List<clsAccBalance> AccPaylist { get; set; }
+
+    public List<clsNetProfit> NetProfitlistall { get; set; }
+    public List<clsAccBalance> AccReclistall { get; set; }
+    public List<clsAccBalance> AccPaylistall { get; set; }
+
+
+    public IEnumerable<FundFlow> fundlistnew { get; set; }
+    public List<Finance> finlist { get; set; }
+    public IEnumerable<FundFlow> fundlistfunnel { get; set; }
+    public IEnumerable<AbsentParent> gridNationlist { get; set; }
+
+    public AbsentParent absentParent { get; set; } = new AbsentParent();
+    public string DepartmentId { get; set; }
+    public string Division { get; set; }
+    public string Year { get; set; }
+    public string Classname { get; set; }
+
+    private bool Visibility { get; set; } = false;
+
+    private bool VisibleProperty { get; set; } = false;
+
+    private bool VisibilityNoData { get; set; } = false;
+    int user, AccountID;
+    private bool VisibilityFund { get; set; } = false;
+    //int? AccountID;
+    public IEnumerable<AbsentParent> authorlist { get; set; }
+    SfDashboardLayout dashboardObject;
+    //private Theme Theme { get; set; }
+    private double[] Spacing = new double[] { 15, 15 };
+    public IEnumerable<AbsentParent> acyearlist { get; set; }
+    private double Ratio = 160 / 100;
+    public DateTime MinDate { get; set; } = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 05);
+    public DateTime MaxDate { get; set; } = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 27);
+    //public DateTime? DateValue { get; set; } = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 07);
+
+    //  CultureInfo cin = CultureInfo.InvariantCulture;
+    //  startdate= DateTime.ParseExact("12/25/2008", "MM/dd/yyyy", ci);
+    public DateTime? DateValue { get; set; } = DateTime.ParseExact("09/13/2021", "MM/dd/yyyy", CultureInfo.InvariantCulture);
+
+    public DateTime? DateToValue { get; set; } = DateTime.Now;
+    public IEnumerable<AbsentParent> divlist { get; set; }
+
+    [Inject]
+    public IAttendanceService attservice { get; set; }
+    public List<AbsentParent> CurrYearlist { get; set; }
+    public string branchid { get; set; }
+
+    public string Revenuestr { get; set; }
+    public string BankBalstr { get; set; }
+    public string OutFlowstr { get; set; }
+    public string InFlowstr { get; set; }
+
+    public double Revenueval { get; set; }
+    public double BankBal { get; set; }
+    public double OutFlow { get; set; }
+    public double InFlow { get; set; }
+
+    public double NetProfitval { get; set; }
+    public double AccRecVal { get; set; }
+    public double AccPayVal { get; set; }
+
+    public string NetProfitvalstr { get; set; }
+    public string AccRecValstr { get; set; }
+    public string AccPayValstr { get; set; }
+
+    public int P { get; set; }
+    public string ID { get; set; }
+    public int BranchID { get; set; }
+
+    private static Timer timer;
+    public string Width { get; set; } = "90%";
+    private SfChart liveChart;
+    private double dataLength = 100;
+    private double pper, abper, lper = 0;
+
+    private Random randomNum = new Random();
+    private Theme theme { get; set; }
+    //public ObservableCollection<ChartDataPoint> DataPoints;
+    public IEnumerable<ChartDataNew> NationDetails { get; set; }
+    //public List<Gender> genderDetails { get; set; }
+    //public List<ReligionData> ReligionDetails { get; set; }
+    public string[] branchidarr;
+    public string branchstr;
+    IEnumerable<UserLogin> _UserLogin = new List<UserLogin>();
+    DateTime SDate = DateTime.Now;
+
+    private void ValueChangeHandler(MultiSelectChangeEventArgs<string[]> args)
+    {
+        // Here you can customize your code
+        branchidarr = args.Value;
+
+    }
+    private void ShowFundDialog()
+    {
+        this.VisibilityFund = true;
+    }
+    private void ShowBankDialog()
+    {
+        this.Visibility = true;
+    }
+    // SfAccumulationChart ChartObj;
+    private void Clear()
+    {
+        // if(gridlist!=null)
+        // await this.Grid.PdfExport();
+        this.DepartmentId = "";
+        //this.Division = "";
+    }
+    private async Task ClickExp()
+    {
+        await Chartobj.ExportAsync(Syncfusion.Blazor.Charts.ExportType.JPEG, "chart");
+    }
+    private async Task Click()
+    {
+        if (gridlist != null)
+            await Chartobj.PrintAsync();
+    }
+
+    private async Task ShowMessage()
+    {
+        if ((finlist.Count > 0) || (banklistall.Count > 0) || (revlistall.Count > 0)) { }
+        else
+        {
+
+            VisibilityNoData = true;// No data Dialog
+            VisibleProperty = false;//Hide Spinner
+            StateHasChanged();
+        }
+    }
+    private async Task ShowDashboard()
+    {
+        VisibleProperty = true;
+        StateHasChanged();
+        absentParent.Date = DateValue;
+        absentParent.Year = Year;
+        string sDate = DateValue.ToString();
+        absentParent.Datestr = sDate;
+
+        string sToDate = DateToValue.ToString();
+        absentParent.DateTo = sToDate;
+
+        finlist = new List<Finance> { };
+        revlistall = new List<Revenue> { };
+        banklistall = new List<BankBalance> { };
+        fundlistall = new List<FundFlow> { };
+        //revlistall = null;
+        //banklistall = null;
+        //fundlistall = null;
+
+        revlist = null;
+        banklist = null;
+        fundlist = null;
+
+
+        NetProfitlistall = new List<clsNetProfit> { };
+        AccPaylistall = new List<clsAccBalance> { };
+        AccReclistall = new List<clsAccBalance> { };
+
+        if (branchidarr == null) {
+            VisibleProperty = false;
+            return;
+        }
+        List<string> listarr = branchidarr.ToList();
+        // foreach (var element in branchidarr)
+        //foreach (var element in listarr)
+        for (int i = 0; i < branchidarr.Count(); i++)
+        {
+
+            absentParent.branchid = Convert.ToInt32(branchidarr[i].ToString());
+            //absentParent.branchid = Convert.ToInt32(element);
+            try
+            {
+                revlist = await Task.Run(() => attservice.GetRevenue(absentParent));
+            }
+            catch (Exception ex) { revlist = null; }
+            if (revlist != null)
+            {
+
+                //if (revlistall != null)
+                revlistall.AddRange(revlist.ToList());
+                //else
+                //    revlistall = revlist;
+            }
+            try
+            {
+                banklist = await Task.Run(() => attservice.GetBankBalance(absentParent));
+            }
+            catch (Exception ex) { banklist = null; }
+            if (banklist != null)
+            {
+
+                //if (banklistall != null)
+                banklistall.AddRange(banklist);
+                //else
+                //    banklistall = banklist;
+            }
+            try
+            {
+
+                fundlist = await Task.Run(() => attservice.GetFundFlow(absentParent));
+            }
+            catch (Exception ex) { fundlist = null; }
+            if (fundlist != null)
+            {
+
+                //if (fundlistall != null)
+                fundlistall.AddRange(fundlist);
+                //else
+                //    fundlistall = fundlist;
+            }
+            if ((revlist != null) && (revlist.Count() > 0))
+                Revenueval = Math.Abs(Math.Round(revlist.FirstOrDefault().Balance));
+            //Revenueval = Math.Abs(Math.Round(revlistall.Sum(p => p.Balance)));
+            //Revenueval = Math.Abs(Math.Round(revlist.Sum(p => p.Balance)));
+            // Revenueval = Math.Abs(revlistall.Sum(p => p.Balance));
+            if ((banklist != null) && (banklist.Count() > 0))
+                //BankBal = Math.Abs(Math.Round(banklistall.Sum(p => p.Amount)));
+                BankBal = Math.Abs(Math.Round(banklist.Sum(p => p.Amount)));
+            if ((fundlist != null) && (fundlist.Count() > 0))
+            {
+                // OutFlow = Math.Abs(Math.Round(fundlistall.Sum(p => p.OutFlow)));
+                OutFlow = Math.Abs(Math.Round(fundlist.Sum(p => p.OutFlow)));
+                // InFlow = Math.Abs(Math.Round(fundlistall.Sum(p => p.InFlow)));
+                InFlow = Math.Abs(Math.Round(fundlist.Sum(p => p.InFlow)));
+            }
+            // customers.First(c => c.Id == id).Name
+            //Assign Branch Name for the chart
+            string SchoolCode = "";
+
+            if ((revlist != null) && (revlist.Count() > 0)) SchoolCode = revlist.Select(p => p.SchoolCode).First();
+            else if ((fundlist != null) && (fundlist.Count() > 0)) SchoolCode = fundlist.Select(p => p.SchoolCode).First();
+            else if ((banklist != null) && (banklist.Count() > 0)) SchoolCode = banklist.Select(p => p.SchoolCode).First();
+
+            finlist.Add(new Finance { SchoolCode = SchoolCode, Revenue = Revenueval, BankBalance = BankBal, CashInflow = InFlow, CashOutFlow = OutFlow });
+
+            try
+            {
+                NetProfitlist = await Task.Run(() => attservice.GetNetProfit(absentParent));
+            }
+            catch (Exception ex) { NetProfitlist = null; }
+            if (NetProfitlist != null)
+            {
+
+                //if (NetProfitlistall != null)
+                NetProfitlistall.AddRange(NetProfitlist);
+                //else
+                //    NetProfitlistall = NetProfitlist;
+            }
+            try
+            {
+                AccReclist = await Task.Run(() => attservice.GetAccReceivable(absentParent));
+            }
+            catch (Exception ex) { AccReclist = null; }
+            if (AccReclist != null)
+            {
+
+                //if (AccReclistall != null)
+                AccReclistall.AddRange(AccReclist);
+                //else
+                //    AccReclistall = AccReclist;
+            }
+            try
+            {
+                AccPaylist = await Task.Run(() => attservice.GetAccPayable(absentParent));
+            }
+            catch (Exception ex) { AccPaylist = null; }
+            if (AccPaylist != null)
+            {
+
+                //if (AccPaylistall != null)
+                AccPaylistall.AddRange(AccPaylist);
+                //else
+                //    AccPaylistall = AccPaylist;
+            }
+        }//End Forloop
+
+        // banklistall= banklistall.GroupBy(p => p.BankName).All().;
+        if (branchidarr.Count() > 4)
+        {
+
+            //Change Cahrt data-SUM all amount for a school
+            var summaryApproach1 = banklistall.GroupBy(l => l.SchoolCode)
+    .Select(cl => new BankBalance
+    {
+        SchoolCode = cl.First().SchoolCode,
+        BankName = cl.First().SchoolCode,
+        Amount = Convert.ToDouble(cl.Sum(c => c.Amount)),
+    }).ToList();
+            banklistall = summaryApproach1.ToList();
+
+            var summaryApproach2 = fundlistall.GroupBy(l => l.SchoolCode)
+    .Select(cl => new FundFlow
+    {
+        SchoolCode = cl.First().SchoolCode,
+        AccountName = cl.First().SchoolCode,
+        InFlow = Convert.ToDouble(cl.Sum(c => c.InFlow)),
+        OutFlow = Convert.ToDouble(cl.Sum(c => c.OutFlow)),
+    }).ToList();
+            fundlistall = summaryApproach2.ToList();
+
+
+        }
+
+        //        banklistall.GroupBy(l => l.SchoolCode)
+        //.Select(cl => new BankBalance
+        //{
+        //    Amount = cl.Sum(c => c.Amount).ToString(),
+        //}).ToList();
+        //    }
+
+        branchstr = String.Join(",", finlist.Select(x => x.SchoolCode));
+        //If revenue or fundflow or bankbalance has value
+        if (finlist.Count() > 0)
+        {
+            Revenueval = finlist.Sum(p => p.Revenue);
+            BankBal = finlist.Sum(p => p.BankBalance);
+            OutFlow = finlist.Sum(p => p.CashOutFlow);
+            InFlow = finlist.Sum(p => p.CashInflow);
+
+            //Change into K or M depend on digit length
+            if (Revenueval != 0)
+                Revenuestr = MaxThreeSignificantDigits(Revenueval);
+            if (BankBal != 0)
+                BankBalstr = MaxThreeSignificantDigits(BankBal);
+            if (OutFlow != 0)
+                OutFlowstr = MaxThreeSignificantDigits(OutFlow);
+            if (InFlow != 0)
+                InFlowstr = MaxThreeSignificantDigits(InFlow);
+        }
+        if ((NetProfitlistall != null) && (NetProfitlistall.Count() > 0))
+        {
+            NetProfitval = Math.Abs(Math.Round(NetProfitlistall.Sum(p => p.NetProfit)));
+            if (NetProfitval != 0)
+                NetProfitvalstr = MaxThreeSignificantDigits(NetProfitval);
+        }
+        if ((AccReclistall != null) && (AccReclistall.Count() > 0))
+        {
+            AccRecVal = Math.Abs(Math.Round(AccReclistall.Sum(p => p.AccBalance)));
+            if (AccRecVal != 0)
+                AccRecValstr = MaxThreeSignificantDigits(AccRecVal);
+        }
+        if ((AccPaylistall != null) && (AccPaylistall.Count() > 0))
+        {
+            AccPayVal = Math.Abs(Math.Round(AccPaylistall.Sum(p => p.AccBalance)));
+            if (AccPayVal != 0)
+                AccPayValstr = MaxThreeSignificantDigits(AccPayVal);
+        }
+        //  string a = (Revenueval / 1000000000D).ToString("0.##");
+        // Console.WriteLine((246380208.84 / 1000000000D).ToString("0.##"), CultureInfo.InvariantCulture);
+        VisibleProperty = false;
+        ShowMessage();
+        this.StateHasChanged();
+    }
+    private async Task Show()
+    {
+
+        try
+        {
+            await ShowDashboard();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.ToString());
+        }
+
+        StateHasChanged();
+
+
+    }
+    private void YearChangeHandler(ChangeEventArgs<string, AbsentParent> args)
+    {
+        Year = args.Value;
+    }
+    private void onChange(Syncfusion.Blazor.Calendars.ChangedEventArgs<DateTime?> args)
+    {
+        DateValue = args.Value;
+        StateHasChanged();
+    }
+    private void onToChange(Syncfusion.Blazor.Calendars.ChangedEventArgs<DateTime?> args)
+    {
+        DateToValue = args.Value;
+        StateHasChanged();
+    }
+    protected void OnYearValueChanged(Microsoft.AspNetCore.Components.ChangeEventArgs e)
+    {
+
+        if (e.Value == null)
+            absentParent.Year = null;
+        else
+        {
+            absentParent.Year = e.Value.ToString();
+            Year = e.Value.ToString();
+        }
+    }
+    protected async Task OnValueChanged(ChangeEventArgs<string, AbsentParent> args)
+    {
+
+    }
+    static string MaxThreeSignificantDigits(double num)
+    {
+
+
+        double i = (long)Math.Pow(10, (int)Math.Max(0, Math.Log10(num) - 2));
+        num = num / i * i;
+
+        if (num >= 1000000000)
+            return (num / 1000000000D).ToString("0.##") + "B";
+        if (num >= 1000000)
+            return (num / 1000000D).ToString("0.##") + "M";
+        if (num >= 1000)
+            return (num / 1000D).ToString("0.##") + "K";
+
+        return num.ToString("#,0");
+    }
+
+    //protected async Task LocalStorage()
+    //{
+    //    await localStorage.SetItemAsync("UserID", _UserLogin.First().UserID);
+    //    await localStorage.SetItemAsync("AccountID", _UserLogin.First().AccountID);
+    //    await localStorage.SetItemAsync("Username", _UserLogin.First().UserName);
+    //    await localStorage.SetItemAsync("Name", _UserLogin.First().Name);
+    //    await localStorage.SetItemAsync("Password", _UserLogin.First().Password);
+    //    await localStorage.SetItemAsync("Category", _UserLogin.First().Category);
+    //    await localStorage.SetItemAsync("ProfileID", _UserLogin.First().ProfileID);
+    //    await localStorage.SetItemAsync("BranchID", _UserLogin.First().BranchID);
+    //}
+    protected override async Task OnInitializedAsync()
+    {
+        AccountID = await localStorage.GetItemAsync<int>("AccountID");
+        user = await localStorage.GetItemAsync<int>("UserID");
+        if (user == 0)
+        {
+            string HomeUrl = "";
+            HomeUrl = await _UserRights.GetURl("Logout", AccountID);
+            NavManager.NavigateTo(HomeUrl);
+            //uriHelper.NavigateTo("Home");
+        }
+        else
+        {
+            await base.OnInitializedAsync();
+            Branchlist = await Task.Run(() => attservice.GetBranches());
+        }
+    }
+    protected async override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+
+                ID = await localStorage.GetItemAsync<string>("UserID");
+                BranchID = await localStorage.GetItemAsync<int>("BranchID");
+                branchid = BranchID.ToString();
+                user = await localStorage.GetItemAsync<int>("UserID");
+                AccountID = await localStorage.GetItemAsync<int>("AccountID");
+
+                _UserLogin = (await _IUserLoginManager.GetUserData(int.Parse(ID), int.Parse(branchid))).ToList();
+                //await LocalStorageGet();
+                if (_UserLogin.Count() > 0)
+                {
+                    //await LocalStorage();
+                }
+                else
+                {
+                    object logouturl = await _UserRights.GetURl("LogOut", Convert.ToInt32(AccountID));
+                    NavManager.NavigateTo(logouturl.ToString());
+                }
+
+                try
+                {
+                    var result = await FinServ.GetScalar("Select Startdate from School_AcademicYear where status='Current' and BranchID =" + BranchID);
+                    //if ((result == null))
+                    //{
+                    //    result = await FinServ.GetScalar("Select entryfrom from company where  ID =" + BranchID);
+
+                    //}
+
+                    result = "{Scalar:" + result + "}";
+                    var ob = JObject.Parse(result.ToString());
+                    var dt = ob["Scalar"]["Startdate"].ToString();
+                    SDate = Convert.ToDateTime(dt);
+                    DateValue = Convert.ToDateTime(dt);
+
+                }
+                catch (Exception ex)
+                {
+                    var result = await FinServ.GetScalar("Select entryfrom from company where  ID =" + BranchID);
+                    result = "{Scalar:" + result + "}";
+                    var ob = JObject.Parse(result.ToString());
+                    var dt = ob["Scalar"]["entryfrom"].ToString();
+                    SDate = Convert.ToDateTime(dt);
+                    DateValue = Convert.ToDateTime(dt);
+                }
+
+                //From date
+                string sDate = DateValue.ToString();
+                absentParent.Datestr = sDate;
+                //To Date
+                string sToDate = DateToValue.ToString();
+                absentParent.DateTo = sToDate;
+
+                absentParent.branchid = BranchID;
+                VisibleProperty = true;
+                StateHasChanged();
+                //Branchlist = await Task.Run(() => attservice.GetBranches());
+                revlistall = await Task.Run(() => attservice.GetRevenue(absentParent));
+                banklistall = await Task.Run(() => attservice.GetBankBalance(absentParent));
+                absentParent.Datestr = Convert.ToDateTime(DateValue).ToString("MM/dd/yyyy");
+                absentParent.DateTo = Convert.ToDateTime(DateToValue).ToString("MM/dd/yyyy");
+                fundlistall = await Task.Run(() => attservice.GetFundFlow(absentParent));
+
+                NetProfitlistall = await Task.Run(() => attservice.GetNetProfit(absentParent));
+                AccReclistall = await Task.Run(() => attservice.GetAccReceivable(absentParent));
+                AccPaylistall = await Task.Run(() => attservice.GetAccPayable(absentParent));
+
+                if ((NetProfitlistall != null) && (NetProfitlistall.Count() > 0))
+                {
+                    NetProfitval = Math.Abs(Math.Round(NetProfitlistall.Sum(p => p.NetProfit)));
+                    if (NetProfitval != 0)
+                        NetProfitvalstr = MaxThreeSignificantDigits(NetProfitval);
+                }
+                if ((AccReclistall != null) && (AccReclistall.Count() > 0))
+                {
+                    AccRecVal = Math.Abs(Math.Round(AccReclistall.Sum(p => p.AccBalance)));
+                    if (AccRecVal != 0)
+                        AccRecValstr = MaxThreeSignificantDigits(AccRecVal);
+                }
+                if ((AccPaylistall != null) && (AccPaylistall.Count() > 0))
+                {
+                    AccPayVal = Math.Abs(Math.Round(AccPaylistall.Sum(p => p.AccBalance)));
+                    if (AccPayVal != 0)
+                        AccPayValstr = MaxThreeSignificantDigits(AccPayVal);
+                }
+
+                Revenueval = Math.Abs(Math.Round(revlistall.Sum(p => p.Balance)));
+                Revenuestr = MaxThreeSignificantDigits(Revenueval);
+
+
+                BankBal = Math.Abs(Math.Round(banklistall.Sum(p => p.Amount)));
+                BankBalstr = MaxThreeSignificantDigits(BankBal);
+
+                OutFlow = Math.Abs(Math.Round(fundlistall.Sum(p => p.OutFlow)));
+                OutFlowstr = MaxThreeSignificantDigits(OutFlow);
+
+                InFlow = Math.Abs(Math.Round(fundlistall.Sum(p => p.InFlow)));
+                InFlowstr = MaxThreeSignificantDigits(InFlow);
+                // finlist = new List<Finance> { };
+
+                finlist = new List<Finance>
+        {
+                                new Finance { SchoolCode = revlistall.Select(x => x.SchoolCode).First(), Revenue = Revenueval, BankBalance = BankBal, CashInflow = InFlow, CashOutFlow = OutFlow }
+                                };
+                branchstr = String.Join(",", finlist.Select(x => x.SchoolCode));
+
+
+                //Remove from list as its values are higher.so to show in chart
+                //            fundlistnew = fundlistall.Where(u => u.AccountName != "ASSETS").Where(u => u.AccountName != "     CURRENT ASSETS")
+                //.Where(u => u.AccountName != "          Accounts Receivables And Prepayments").Where(u => u.AccountName != "          ACCOUNTS RECEIVABLES").
+                //Where(u => u.AccountName != "          CHQS UNDER COLLECTION").
+                //ToList();
+
+
+                //Width = "90%";
+                VisibleProperty = false;
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.ToString());
+            }
+
+        }
+
+    }
+    protected void OnDivValueChanged(Microsoft.AspNetCore.Components.ChangeEventArgs e)
+    {
+
+    }
+
+}
+<style>
+    .e-dashboardlayout {
+        padding: 10px;
+    }
+
+        .e-dashboardlayout.e-control .e-panel .e-panel-container .e-panel-header {
+            line-height: 40px;
+            height: 40px;
+        }
+
+    .bootstrap5 .e-dashboardlayout.e-control .e-panel .e-panel-container .e-panel-header,
+    .bootstrap5-dark .e-dashboardlayout.e-control .e-panel .e-panel-container .e-panel-header,
+    .tailwind .e-dashboardlayout.e-control .e-panel .e-panel-container .e-panel-header,
+    .tailwind-dark .e-dashboardlayout.e-control .e-panel .e-panel-container .e-panel-header {
+        line-height: inherit;
+    }
+
+    .root-container {
+        height: 100%;
+    }
+
+    .title {
+        font-size: 16px;
+        font-weight: 400;
+    }
+
+    .category-text {
+        float: left;
+        line-height: 30px;
+    }
+
+    .category-icon {
+        float: left;
+        background-repeat: no-repeat;
+        background-position-x: center;
+        background-size: 100%;
+        height: 30px;
+        width: 30px;
+        display: inline-block;
+        margin-right: 10px;
+    }
+
+        .category-icon.food {
+            @*background-image: url("@(SampleService.WebAssetsPath + "images/dashboard-layout/food.png")");*@ background-image: url("https://erp.athenaeducationglobal.com:8200/OrisonAttendance/Photos/StudentPhoto.aspx?ID=110403");
+        }
+
+        .category-icon.travel {
+            @*/*background-image: url("@(SampleService.WebAssetsPath + "images/dashboard-layout/transport.png")");*/*@
+        }
+
+        .category-icon.housing {
+            @*/*background-image: url("@(SampleService.WebAssetsPath + "images/dashboard-layout/house.png")");*/*@
+        }
+
+        .category-icon.extra-income {
+            @*/*background-image: url("@(SampleService.WebAssetsPath + "images/dashboard-layout/extra.png")");*/*@
+        }
+
+    .item-container {
+        display: flex;
+        text-align: center;
+        height: 70%;
+        padding: 2rem;
+        font-size: 22px;
+        font-weight: 400;
+    }
+
+        .item-container.income {
+            color: #17a00e
+        }
+
+        .item-container.balance {
+            color: #008cff;
+        }
+
+        .item-container.transaction {
+            color: #f41127;
+        }
+
+        .item-container.expense {
+            color: #ca765a;
+        }
+
+    .bottom-container {
+        text-align: center;
+        font-weight: 400;
+        font-size: 16px;
+    }
+
+    .mobile .bottom-container {
+        font-size: 30px;
+    }
+
+    .material .bottom-container,
+    .fabric .bottom-container,
+    .bootstrap .bottom-container,
+    .bootstrap4 .bottom-container,
+    .tailwind .bottom-container,
+    .bootstrap5 .bottom-container {
+        color: #4c5258;
+    }
+
+    .amt-payment.expense-payment {
+        font-weight: bold;
+        color: #ff5e65;
+    }
+
+    .amt-payment.income-payment {
+        font-weight: bold;
+        color: #04cd93;
+    }
+
+    .auto-left {
+        margin-left: auto;
+    }
+
+    .e-panel-cotent {
+        padding: 1rem;
+    }
+
+    @@font-face {
+        font-family: 'e-sb-icons';
+        src: url(data:application/x-font-ttf;charset=utf-8;base64,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) format("truetype");
+        font-weight: normal;
+        font-style: normal;
+    }
+
+    .balance:after {
+        content: "\e900";
+        font-size: 24px;
+        font-family: "e-sb-icons";
+    }
+
+    .expense:after {
+        content: "\e901";
+        font-size: 24px;
+        font-family: "e-sb-icons";
+    }
+
+    .income:after {
+        content: "\e902";
+        font-size: 24px;
+        font-family: "e-sb-icons";
+    }
+
+    .transaction:after {
+        content: "\e903";
+        font-size: 24px;
+        font-family: "e-sb-icons";
+    }
+
+    .e-headercelldiv span.e-headertext {
+        font-size: 14px;
+        font-weight: 500;
+    }
+
+    .e-grid .e-rowcell {
+        font-size: 13px;
+    }
+
+    .mobile .e-control.e-lib.e-dashboardlayout.e-responsive {
+        z-index: 0;
+        overflow: scroll;
+    }
+
+    .mobile .item-container {
+        padding: 40px;
+        font-size: 40px;
+    }
+
+    .mobile .balance:after {
+        content: "\e900";
+        font-size: 40px;
+        font-family: "e-sb-icons";
+    }
+
+    .mobile .expense:after {
+        content: "\e901";
+        font-size: 40px;
+        font-family: "e-sb-icons";
+    }
+
+    .mobile .income:after {
+        content: "\e902";
+        font-size: 40px;
+        font-family: "e-sb-icons";
+    }
+
+    .mobile .transaction:after {
+        content: "\e903";
+        font-size: 40px;
+        font-family: "e-sb-icons";
+    }
+
+    .e-control.e-lib.e-dashboardlayout.e-responsive {
+        z-index: 0;
+    }
+
+    .e-dashboardlayout.e-control .e-panel .e-panel-container .e-grid.sf-grid .e-gridcontent .e-content.e-yscroll {
+        overflow: auto;
+    }
+
+    body.tailwind-dark .e-dashboardlayout.e-control .e-panel {
+        border: 1px #435266 solid;
+    }
+
+    .e-gridheader {
+        padding-right: 0px !important;
+    }
+</style>

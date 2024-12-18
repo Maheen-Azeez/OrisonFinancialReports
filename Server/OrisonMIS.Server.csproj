@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Concrete\General\MailServiceSettings.cs" />
+    <Compile Remove="Contract\General\IMailServiceSettings.cs" />
+    <Compile Remove="Controllers\GadgetsController.cs" />
+    <Compile Remove="Controllers\General\MailController.cs" />
+    <Compile Remove="Controllers\General\UniqueAccountsController.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BoldReports.Net.Core" Version="5.4.25" />
+    <PackageReference Include="ClosedXML" Version="0.102.2" />
+    <PackageReference Include="Dapper" Version="2.1.28" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="6.0.25" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="5.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Client\OrisonMIS.Client.csproj" />
+    <ProjectReference Include="..\Shared\OrisonMIS.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="OrisonEncryption">
+      <HintPath>C:\Users\mahee\Downloads\OrisonEncryption.dll</HintPath>
+    </Reference>
+    <Reference Include="SecurityService">
+      <HintPath>C:\Users\mahee\Downloads\SecurityService.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+
+</Project>

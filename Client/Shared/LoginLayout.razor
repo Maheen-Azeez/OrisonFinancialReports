@@ -1,0 +1,12 @@
+﻿@inherits LayoutComponentBase
+@using Blazored.Toast.Configuration
+<div class="col-12">
+    @Body
+</div>
+<BlazoredToasts Position="ToastPosition.BottomCenter"
+                Timeout="6"
+                IconType="IconType.FontAwesome"
+                SuccessClass="success-toast-override"
+                SuccessIcon="fa fa-thumbs-up"
+                ErrorIcon="fa fa-exclamation-circle" />
+

@@ -1,0 +1,42 @@
+﻿/*body {
+    direction:rtl;
+}
+label {
+    float: right;
+    text-align:right;
+}
+.e-headertext {
+    float: right;
+}*/
+
+body {
+    direction: rtl;
+}
+
+label {
+    float: right;
+    text-align: right;
+}
+
+.e-headertext {
+    float: right;
+}
+
+button {
+    float: right;
+    text-align: right;
+}
+
+.sidebar-treeview .e-treeview .e-icon-collapsible,
+.sidebar-treeview .e-treeview .e-icon-expandable {
+    float: left;
+}
+.page-heading {
+    color: #014164;
+    font-size: large;
+    font-weight: bold;
+    float: left;
+}
+.direction {
+    direction: rtl;
+}

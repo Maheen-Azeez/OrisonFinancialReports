@@ -1,0 +1,72 @@
+﻿@page "/Home"
+@inject IJSRuntime JsRuntime
+@using Microsoft.Extensions.Localization
+@using OrisonMIS.Client.Resources
+@inject IStringLocalizer<SfResources> Localizer
+
+<head>
+    <link href="css/OrisonSyncfusionStyles.css" rel="stylesheet" />
+    <link href="css/HomeOrisonSyncfusionStyles.css" rel="stylesheet" />
+</head>
+
+<div class="container" style="height: @DeviceHeight;">
+    @*<div style=" padding-top: 11%;text-align:center;">
+    @if (!string.IsNullOrEmpty(imgSchoolLogo))
+    {
+    <img src="@imgSchoolLogo" style="width: 345px; height: 90px;" alt="Orison" class="avatar-xxl mb-1">
+    }
+    </div>*@
+    <div class="row" style=" padding-top: 15%;">
+        <div class="col-md-12 text-center">
+            <h3 class="animate-charcter">@Localizer["Orison Financial Reports"]</h3>
+        </div>
+    </div>
+</div>
+
+@code {
+    int AccountID, BranchID, UserID;
+    string DeviceHeight = "", StudentName = "", CmbAccYear = "", imgSchoolLogo = "", Con, Category;
+    public bool AddEdit = false;
+    public bool popStudents = false;
+    public bool popAlert = false;
+    private string Xvalue = "center";
+    private string Yvalue = "center";
+
+    public class WindowDimension
+    {
+        public int Width { get; set; }
+        public int Height { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            //Device Settings
+            var dimension = await JsRuntime.InvokeAsync<WindowDimension>("getWindowDimensions");
+            DeviceHeight = dimension.Height - 90 + "px";
+            //Device Settings
+            //Con = await SessionStorage.GetItemAsync<string>("Con");
+            //Category = await SessionStorage.GetItemAsync<string>("Category");
+            //BranchID = await SessionStorage.GetItemAsync<int>("BranchID");
+            //UserID = await SessionStorage.GetItemAsync<int>("UserID");
+            ////string Logo = await StudentService.getLogo(BranchID, Con);
+            ////object LogoUrl = await StudentService.getLogoUrl(Con);
+            ////imgSchoolLogo = LogoUrl.ToString() + "LogoWithName/" + Logo;
+            //ShortCuts = (await ShortcutManage.GetShortCuts("Student", BranchID, Con)).ToList();
+            //CmbYear = (await StudentMasterService.GetAcademicYear(BranchID, Con)).ToList();
+            //objAccYear = CmbYear.Where(b => b.Status.Trim() == "Current").FirstOrDefault();
+            //CmbAccYear = objAccYear.AcademicYear.ToString();
+            //StudentList = (await StudentService.GetStudents(CmbAccYear, BranchID, Category, UserID, Con)).ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+    }
+    public void AddEditShortcut()
+    {
+        AddEdit = !AddEdit;
+    }
+
+}

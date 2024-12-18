@@ -1,0 +1,271 @@
+﻿@page "/PDCReport"
+@using OrisonMIS.Client.Services
+@using OrisonMIS.Shared.Entities.Financial;
+@using Microsoft.AspNetCore.Components;
+@using OrisonMIS.Shared.Entities.General
+@using OrisonMIS.Shared.Entities.Inventory;
+@using Syncfusion.Blazor.Buttons;
+@using Syncfusion.Blazor.Grids;
+@using Syncfusion.Blazor.Calendars;
+@using Syncfusion.Blazor.Inputs;
+@using Syncfusion.Blazor.Spinner;
+@using Syncfusion.Blazor.DropDowns;
+@using System.Data;
+@using Syncfusion.Blazor.Data;
+@using Newtonsoft.Json;
+@using Newtonsoft.Json.Linq;
+@inject NavigationManager uriHelper
+@inject HttpClient http
+@inject OrisonMIS.Client.Services.FinServices FinServ
+@inject OrisonMIS.Client.Services.UserRightsService _UserRights
+@inject GlobalService _GlobalServ
+@inject FinancialDateTimeService FinancialDateService
+
+@inject OrisonMIS.Client.Logics.Contract.Financial.IAccStmt _IAccStmt
+@inject OrisonMIS.Client.Logics.Contract.Inventory.IInvAccounts _IInvAccounts
+@inject OrisonMIS.Client.Logics.Contract.Inventory.IInvAccountManager _InvAccountManager
+@inject OrisonMIS.Client.Logics.Contract.Financial.IItemMasterManager _ItemMasterManager
+@inject OrisonMIS.Client.Logics.Contract.Inventory.IInvItemsManager _InvItemsManager
+@inject Blazored.SessionStorage.ISessionStorageService localStorage
+@using Microsoft.Extensions.Localization
+@using OrisonMIS.Client.Resources
+@inject IStringLocalizer<SfResources> Localizer
+
+<head>
+    <link href="css/OrisonSyncfusionStyles.css" rel="stylesheet" />
+</head>
+
+<div>
+    <div class="box-card-shadow">
+
+        <div class="row">
+            <div class="col-sm-12" style="padding-bottom:7px;">
+                <div class="row" style="padding-top: 4px;">
+                    <div class="col-md-9">
+                        <SfButton @onclick="ExcelExport" IconCss="Icon excel" CssClass="e-btn" Content=@Localizer["Excel"] IsPrimary="false" />
+                        <SfButton @onclick="ExportPdf" IconCss="Icon pdf" CssClass="e-btn" Content=@Localizer["PDF"] IsPrimary="false" />
+                    </div>
+                    <div class="col-md-3" style="text-align:end">
+                        <label class="page-heading">@Localizer["PDC Reports"]</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="box-card-shadow">
+
+        <div class="row">
+            <div class="col-sm-12" style="padding-bottom:7px;">
+                <div class="row">
+                    <div class="col-md-12">
+                        <SfComboBox Placeholder=@Localizer["PDC Type"] @bind-Value="@DCType" DataSource="@DrCrType"
+                                    Width="200px" FilterType="Syncfusion.Blazor.DropDowns.FilterType.Contains"></SfComboBox>
+                        <SfRadioButton Label=@Localizer["Voucher Date"] Name="VCDate" Value="VDate" Checked="@Date"></SfRadioButton>
+                        <SfRadioButton Label=@Localizer["Cheque Date"] Name="VCDate" Value="CDate" Checked="@Date"></SfRadioButton>
+                        <SfDatePicker @bind-Value="@FinancialDateService.StartDate" Format="dd/MM/yyyy" title=@Localizer["From Date"] Width="120px" Placeholder=@Localizer["From Date"]></SfDatePicker>
+                        <SfDatePicker @bind-Value="@FinancialDateService.EndDate" Format="dd/MM/yyyy" title=@Localizer["To Date"] Width="120px" Placeholder=@Localizer["To Date"]></SfDatePicker>
+
+
+                        <SfButton IconCss="Icon search" @onclick="@Search_Click" title=@Localizer["Search"] CssClass="widthset"></SfButton>
+                        <SfButton IconCss="Icon filter" CssClass="e-btn4" Content=" " @onclick="@Clear_Click" HtmlAttributes="@ClearFilter"></SfButton>
+
+                        @if (Isload)
+                        {
+                            <img src="gif/loading-waiting.gif" style="padding-left:2px; width: 20px; height: 20px;" />
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="box-card-shadow">
+        <div class="col-md-12 col-sm-12 pt-2">
+            <div class="row" style="padding-top:0px;">
+                <div class="table-responsive" style="position: relative; min-height:600px; min-width: 300px ">
+                    @if (Stmt == null)
+                    {
+                        <p><em>No data...</em></p>
+                    }
+                    else
+                    {
+                        <SfGrid DataSource="@Stmt"
+                                GridLines="GridLine.Both"
+                                Height="550"
+                                Width="100%"
+                                AllowResizing="true"
+                                AllowFiltering="true"
+                                AllowExcelExport="true"
+                                AllowPdfExport="true"
+                                AllowSorting="true"
+                                @ref="Grid"
+                                EnableVirtualization="true"
+                                RowHeight="25">
+                            <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel" ShowFilterBarStatus="true"></GridFilterSettings>
+
+                            <GridColumns>
+                                <GridColumn Field="@nameof(PDC.ChequeNo)" HeaderText=@Localizer["ChequeNo"] Width="80"></GridColumn>
+                                <GridColumn Field="@nameof(PDC.ChequeDate)" HeaderText=@Localizer["Cheque Date"] Width="100" Format="dd/MM/yyyy"></GridColumn>
+                                <GridColumn Field="@nameof(PDC.Vdate)" HeaderText=@Localizer["VDate"] Width="100" Format="dd/MM/yyyy"></GridColumn>
+                                <GridColumn Field="@nameof(PDC.Vno)" HeaderText=@Localizer["VNo"] Width="80"></GridColumn>
+                                <GridColumn Field="@nameof(PDC.Status)" HeaderText=@Localizer["Status"] Width="100"></GridColumn>
+                                <GridColumn Field="@nameof(PDC.Debit)" HeaderText=@Localizer["Received"] Width="100" Format="N2" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(PDC.Credit)" HeaderText=@Localizer["Issued"] Width="100" Format="N2" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(PDC.PostedDate)" HeaderText=@Localizer["PostedDate"] Width="100" Format="dd/MM/yyyy"></GridColumn>
+                                <GridColumn Field="@nameof(PDC.PostedVno)" HeaderText=@Localizer["PostedVNo"] Width="100"></GridColumn>
+                                <GridColumn Field="@nameof(PDC.BankName)" HeaderText=@Localizer["BankName"] Width="200"></GridColumn>
+                                <GridColumn Field="@nameof(PDC.PartyCode)" HeaderText=@Localizer["PartyCode"] Width="100"></GridColumn>
+                                <GridColumn Field="@nameof(PDC.Party)" HeaderText=@Localizer["Party"] Width="100"></GridColumn>
+                                <GridColumn Field="@nameof(PDC.Description)" HeaderText=@Localizer["Description"] Width="250"></GridColumn>
+                                <GridColumn Field="@nameof(PDC.Substatus)" HeaderText=@Localizer["SubStatus"] Width="100"></GridColumn>
+
+                            </GridColumns>
+                            <GridAggregates>
+                                <GridAggregate>
+                                    <GridAggregateColumns>
+                                        <GridAggregateColumn Field="@nameof(PDC.Debit)" Format="N2" Type="AggregateType.Sum"></GridAggregateColumn>
+                                        <GridAggregateColumn Field="@nameof(PDC.Credit)" Format="N2" Type="AggregateType.Sum"></GridAggregateColumn>
+                                    </GridAggregateColumns>
+                                </GridAggregate>
+                            </GridAggregates>
+                        </SfGrid>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+    @code
+{
+        [Parameter]
+        public string Query { get; set; }
+        public int ID;
+        public decimal CAmt;
+        public bool Isload = false;
+        int user, BranchID, AccountID;
+        private string Date = "VDate";
+        DateTime SDate = DateTime.Now, EDate = DateTime.Now;
+        string FD, TD, Name, DCType, CVno, ID_check, status, substatus, Remarks;
+        SfGrid<PDC> Grid { get; set; }
+        public IList<PDC> dataSource { get; set; }
+        public IList<PDC> FulldataSource { get; set; }
+        private IEnumerable<PDC> TreeGridData { get; set; }
+        public IList<dtInvAccounts> AccList = new List<dtInvAccounts>();
+        public IList<dtInvAccounts> BankList = new List<dtInvAccounts>();
+        public IList<dtInvAccounts> PDCList = new List<dtInvAccounts>();
+        dtInvAccounts ObAcc = new dtInvAccounts();
+        dtInvAccounts BankAcc = new dtInvAccounts();
+        IList<PDC> Stmt = new List<PDC>();
+        SfComboBox<string, dtInvAccounts> ItemCombo { get; set; }
+        public Query LocalDataQueryMemberItem { get; set; } = new Query().Take(10);
+        public IList<string> PDCStatus { get; set; }
+        public IList<string> PDCSubStatus { get; set; }
+        IEnumerable<string> DrCrType = new List<string>() { "All", "Issued", "Received" };
+        public string? DecimalFormat { get; set; }
+        private Dictionary<string, object> ClearFilter = new Dictionary<string, object>()
+        {
+            { "title", "Clear Filter"}
+        };
+        protected override async Task OnInitializedAsync()
+        {
+            BranchID = await localStorage.GetItemAsync<int>("BranchID");
+            user = await localStorage.GetItemAsync<int>("UserID");
+            AccountID = await localStorage.GetItemAsync<int>("AccountID");
+                    await FinancialDateService.InitializeDates();
+
+            if (user == 0)
+            {
+                string HomeUrl = "";
+                HomeUrl = await _UserRights.GetURl("Logout", AccountID);
+                uriHelper.NavigateTo(HomeUrl);
+            }
+            else
+            {
+                // var result = await FinServ.GetScalar("Select Entryfrom from company where id =" + BranchID);
+                // result = "{Scalar:" + result + "}";
+                // var ob = JObject.Parse(result.ToString());
+                // var dt = ob["Scalar"]["Entryfrom"].ToString();
+                // SDate = Convert.ToDateTime(dt);
+                // FinancialDateTime financialDate = await FinServ.GetFinancialDateTimeAsync(BranchID);
+                // SDate = financialDate.startDate;
+                // EDate = financialDate.endDate;
+                AccList = (await _IInvAccounts.GetAccounts("All")).ToList();
+                BankList = (await _IInvAccounts.GetAccounts("Bank")).ToList();
+                PDCList = (await _IInvAccounts.GetAccounts("PDC")).ToList();
+                foreach (var v in PDCList)
+                    BankList.Add(v);
+                PDCStatus = await FinServ.GetStringTable("select distinct trantype from ChequesTran");
+                DecimalFormat = _GlobalServ.GlobalCurrencyFormat;
+                if (DecimalFormat == null || DecimalFormat == "")
+                {
+
+                    DecimalFormat = "0.00";
+                }
+                await base.OnInitializedAsync();
+            }
+            await InvokeAsync(StateHasChanged);
+        }
+        public async Task Search_Click()
+        {
+            Isload = true;
+            SDate = FinancialDateService.StartDate;
+            EDate = FinancialDateService.EndDate;
+            FD = SDate.Month.ToString("00") + "-" + SDate.Day.ToString("00") + "-" + SDate.Year;
+            TD = EDate.Month.ToString("00") + "-" + EDate.Day.ToString("00") + "-" + EDate.Year;
+            dataSource = (await _IAccStmt.ShowPDC(BranchID, status)).ToList();
+            FulldataSource = dataSource;
+            if (Date == "VDate")
+                dataSource = dataSource.Where(x => x.Vdate >= SDate && x.Vdate <= EDate).ToList();
+            else if (Date == "CDate")
+                dataSource = dataSource.Where(x => x.ChequeDate >= SDate && x.ChequeDate <= EDate).ToList();
+            if (BankAcc.ID.ToString() != "0")
+                dataSource = dataSource.Where(x => x.BankName == BankAcc.AccountName).ToList();
+            if (DCType == "Issued")
+                dataSource = dataSource.Where(x => x.Credit > 0).ToList();
+            else if (DCType == "Received")
+                dataSource = dataSource.Where(x => x.Debit > 0).ToList();
+            Stmt = dataSource.ToList();
+            Isload = false;
+            await InvokeAsync(StateHasChanged);
+        }
+        public async Task onFilteringCustAccount(Syncfusion.Blazor.DropDowns.FilteringEventArgs args)
+        {
+            args.PreventDefaultAction = true;
+            var pre = new WhereFilter();
+            var predicate = new List<WhereFilter>();
+            predicate.Add(new WhereFilter() { Condition = "or", Field = "AccountCode", value = args.Text, Operator = "contains", IgnoreAccent = true, IgnoreCase = true });
+            predicate.Add(new WhereFilter() { Condition = "or", Field = "AccountName", value = args.Text, Operator = "contains", IgnoreAccent = true, IgnoreCase = true });
+            pre = WhereFilter.Or(predicate);
+            var query = new Query();
+            query = args.Text == "" ? new Query().Take(100) : new Query().Where(pre).Take(100);
+            await this.ItemCombo.FilterAsync(AccList, query);
+        }
+        private void ValueChangeHandler(ChangeEventArgs<string, dtInvAccounts> args)
+        {
+            if (args.ItemData.GetType() != null)
+            {
+                ObAcc = args.ItemData;
+            }
+        }
+
+    public async Task ExcelExport()
+    {
+        await this.Grid.ExportToExcelAsync();
+
+    }
+        public void ExportPdf()
+        {
+            PdfExportProperties PdfProperties = new PdfExportProperties();
+            PdfProperties.FileName = "PDCReport.pdf";
+            this.Grid.ExportToPdfAsync(PdfProperties);
+        }
+    public async Task Clear_Click()
+    {
+        await Grid!.SearchAsync("");
+        await Grid.ClearFilteringAsync();
+
+    }
+}

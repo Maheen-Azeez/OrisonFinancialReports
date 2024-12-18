@@ -1,0 +1,75 @@
+﻿@page "/"
+@page "/Redirect"
+@using Microsoft.AspNetCore.WebUtilities
+@using SecurityService
+@using System.Globalization
+@using OrisonMIS.Client.Pages.Loading
+@using OrisonMIS.Shared.Entities.General
+@using System.Web
+@using Newtonsoft.Json
+@layout LoginLayout
+@inject NavigationManager _NavManager
+@inject HttpClient http
+@inject Blazored.SessionStorage.ISessionStorageService sessionStorage
+@inject IJSRuntime IJS
+
+<LoadingScreen></LoadingScreen>
+
+@code {
+    public string ID, BranchID, Date, Key, Language;
+    DateTime URLDate;
+    IEnumerable<DtoLoginModel> info = new List<DtoLoginModel>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Date != "" || Date != null)
+        {
+            var uri = _NavManager.ToAbsoluteUri(_NavManager.Uri);
+            var queryStrings = QueryHelpers.ParseQuery(uri.Query);
+            if (queryStrings.TryGetValue("Param", out var _Param))
+            {
+                string param = await http.GetStringAsync("api/Encryption/Decrypt?Text=" + _Param.ToString());
+                string[] paramArr = param.Split(new Char[] { '&' });
+                if (paramArr.Length > 0)
+                {
+                    Dictionary<String, String> paramKeyVal = paramArr.Select(x => x.Split('=')).ToDictionary(x => x[0], x => x[1]);
+                    if ((paramKeyVal.TryGetValue("ID", out var id)))
+                    {
+                        ID = id;
+                    }
+                    else if ((paramKeyVal.TryGetValue("UserID", out var userId)))
+                    {
+                        ID = userId;
+                    }
+                    if ((paramKeyVal.TryGetValue("BranchID", out var Value2)))
+                    {
+                        BranchID = Value2;
+                    }
+                    if ((paramKeyVal.TryGetValue("Date", out var Value3)))
+                    {
+                        Date = Value3;
+                    }
+                    if ((paramKeyVal.TryGetValue("Key", out var _Key)))
+                    {
+                        Key = _Key;
+                    }
+                    if (ID != null && BranchID != null && !string.IsNullOrEmpty(Key))
+                    {
+                        string _key = await http.GetStringAsync("API/Encryption/Encrypt?Text=" + HttpUtility.UrlEncode(Key));
+
+                        if (!string.IsNullOrEmpty(_key))
+                        {
+                            string language = await IJS.InvokeAsync<string>("cultureInfo.get");
+                            await sessionStorage.SetItemAsync("language", language);
+                            await sessionStorage.SetItemAsync("token_key", _key);                                                         
+                            await sessionStorage.SetItemAsync("RedirectUserID", ID);
+                            await sessionStorage.SetItemAsync("RedirectBranchID", BranchID);
+                            _NavManager.NavigateTo("Index");
+                           
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

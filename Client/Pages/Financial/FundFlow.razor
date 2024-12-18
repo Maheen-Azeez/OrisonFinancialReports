@@ -1,0 +1,486 @@
+﻿@page "/FundFlow"
+@using OrisonMIS.Client.Services
+@using OrisonMIS.Shared.Entities.Financial;
+@using Microsoft.AspNetCore.Components;
+@using OrisonMIS.Shared.Entities.General
+@using Syncfusion.Blazor.Buttons;
+@using Syncfusion.Blazor.TreeGrid;
+@using Syncfusion.Blazor.Calendars;
+@using Syncfusion.Blazor.Grids;
+@using Syncfusion.Blazor.Spinner;
+
+@using Newtonsoft.Json;
+@using Newtonsoft.Json.Linq;
+@inject NavigationManager uriHelper
+@inject HttpClient http
+@inject OrisonMIS.Client.Services.FinServices FinServ
+@inject OrisonMIS.Client.Services.UserRightsService _UserRights
+@inject GlobalService _GlobalServ
+@inject IJSRuntime IJS
+@inject Blazored.SessionStorage.ISessionStorageService localStorage
+@inject OrisonMIS.Client.Logics.Contract.Financial.ICashFlow _ICashFlow
+@inject FinancialDateTimeService FinancialDateService
+
+@using Microsoft.Extensions.Localization
+@using OrisonMIS.Client.Resources
+@inject IStringLocalizer<SfResources> Localizer
+<head>
+    <link href="css/OrisonSyncfusionStyles.css" rel="stylesheet" />
+</head>
+
+<div>
+    <div class="box-card-shadow">
+        <div class="row">
+            <div class="col-sm-12" style="padding-bottom:7px;">
+                <div class="row" style="padding-top: 5px;">
+                    <div class="col-md-8">
+                        <SfButton @onclick="ExcelExport" IconCss="Icon excel" CssClass="e-btn" Content=@Localizer["Excel"] IsPrimary="false" />
+                        <SfButton @onclick="ExportPdf" IconCss="Icon pdf" CssClass="e-btn" Content=@Localizer["PDF"] IsPrimary="false" />
+                    </div>
+                    <div class="col-md-4" style="text-align:end">
+                        <label class="page-heading">@Localizer["Fund Flow"]</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="box-card-shadow">
+
+        <div class="row">
+            <div class="col-sm-12" style="padding-bottom:8px;">
+                <div class="row">
+                    <div class="col-md-12">
+
+                        <SfDatePicker @bind-Value="@FinancialDateService.StartDate" Format="dd/MM/yyyy" title=@Localizer["From Date"] Width="140px" Placeholder=@Localizer["From Date"]></SfDatePicker>
+                        <SfDatePicker @bind-Value="@FinancialDateService.EndDate" Format="dd/MM/yyyy" title=@Localizer["To Date"] Width="140px" Placeholder=@Localizer["To Date"]></SfDatePicker>
+                        <SfCheckBox @bind-Checked="@Detailed" @onchange="onChange">@Localizer["Detailed"]</SfCheckBox>
+                         <SfButton IconCss="Icon search" @onclick="@Search_Click" title="Search" CssClass="widthset"></SfButton>
+                        <SfButton IconCss="Icon filter" CssClass="e-btn4" Content=" " @onclick="@Clear_Click" HtmlAttributes="@ClearFilter"></SfButton>
+
+                        @if (Isload)
+                        {
+                            <img src="gif/loading-waiting.gif" style="padding-left:2px; width: 20px; height: 20px;" />
+                        }
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="box-card-shadow">
+        <div class="col-md-12 col-sm-12">
+            <div class="row" style="padding-top:0px;">
+                <div class="table-responsive" style="position: relative; min-height:600px; min-width: 300px ">
+                    @if (Stmt == null)
+                    {
+                        <p><em>No data...</em></p>
+                    }
+                    else
+                    {
+
+@*                         <SfTreeGrid DataSource="@Stmt"
+                                    GridLines="GridLine.Both"
+                                    Height="@GridHeight"
+                                    Width="100%"
+                                    AllowExcelExport="true"
+                                    IdMapping="ID"
+                                    ParentIdMapping="ParentID"
+                                    AllowPdfExport="true"
+                                    @ref="TreeGrid"
+                                    RowHeight="18">
+                            <TreeGridFilterSettings Type="Syncfusion.Blazor.TreeGrid.FilterType.Excel"></TreeGridFilterSettings>
+                            <TreeGridColumns>
+
+                                <TreeGridColumn Field="@nameof(CashFlow.AccountCode)" HeaderText="AccountCode" Width="20%" TextAlign="TextAlign.Left" HeaderTextAlign="TextAlign.Left">
+                                    <Template>
+                                        @{
+                                            var AccName = (context as CashFlow);
+                                            var Name = AccName.AccountCode;
+                                            @if (AccName.AccountName == "Net Increase/Decrease")
+                                            {
+                                                <span>@Name</span>
+                                            }
+                                            else if ((AccName.ParentLevel == 1 || AccName.VoucherEntry == 0))
+                                            {
+                                                <span style="font-weight:bold">@Name</span>
+                                            }
+                                            else
+                                            {
+                                                <span>@Name</span>
+                                            }
+                                        }
+                                    </Template>
+                                </TreeGridColumn>
+                                <TreeGridColumn Field="@nameof(CashFlow.AccountName)" HeaderText="AccountName" Width="50%" TextAlign="TextAlign.Left" HeaderTextAlign="TextAlign.Left">
+                                    <Template>
+                                        @{
+                                            var AccName = (context as CashFlow);
+                                            var Name = AccName.AccountName;
+                                            @if (AccName.AccountName == "Net Increase/Decrease")
+                                            {
+                                                <span>@Name</span>
+                                            }
+                                            else if ((AccName.ParentLevel == 1 || AccName.VoucherEntry == 0))
+                                            {
+                                                <span style="font-weight:bold">@Name</span>
+                                            }
+                                            else
+                                            {
+                                                <span>@Name</span>
+                                            }
+                                        }
+                                    </Template>
+                                </TreeGridColumn>
+                                <TreeGridColumn Field="@nameof(CashFlow.Inflow)" HeaderText="InFlow" Width="20%" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Format="@DecimalFormat">
+                                    <Template>
+                                        @{
+                                            var AccName = (context as CashFlow);
+                                            string Value = Convert.ToDecimal(AccName.Inflow).ToString();
+                                            @if (AccName.AccountName == "Net Increase/Decrease")
+                                            {
+                                                <span>@Value</span>
+                                            }
+                                            else if ((AccName.ParentLevel == 1 || AccName.VoucherEntry == 0))
+                                            {
+                                                <span style="font-weight:bold">@Value</span>
+                                            }
+                                            else
+                                            {
+                                                <span>@Value</span>
+                                            }
+
+                                        }
+                                    </Template>
+                                </TreeGridColumn>
+                                <TreeGridColumn Field="@nameof(CashFlow.Outflow)" HeaderText="OutFlow" Width="20%" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Format="@DecimalFormat">
+                                    <Template>
+                                        @{
+                                            var AccName = (context as CashFlow);
+                                            string Value = Convert.ToDecimal(AccName.Outflow).ToString();
+                                            @if (AccName.AccountName == "Net Increase/Decrease")
+                                            {
+                                                <span>@Value</span>
+                                            }
+                                            else if ((AccName.ParentLevel == 1 || AccName.VoucherEntry == 0))
+                                            {
+                                                <span style="font-weight:bold">@Value</span>
+                                            }
+                                            else
+                                            {
+                                                <span>@Value</span>
+                                            }
+
+                                        }
+                                    </Template>
+                                </TreeGridColumn>
+                            </TreeGridColumns>
+                            <TreeGridAggregates>
+                                <TreeGridAggregate ShowChildSummary="false">
+                                    <TreeGridAggregateColumns>
+                                        <TreeGridAggregateColumn Field="@nameof(CashFlow.Inflow)" Type="AggregateType.Custom" Format="@DecimalFormat">
+                                            <FooterTemplate>
+                                                @{
+
+                                                    <div>
+                                                        <p>@GetWeightedAggregate("InFlow")</p>
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </TreeGridAggregateColumn>
+                                        <TreeGridAggregateColumn Field="@nameof(CashFlow.Outflow)" Type="AggregateType.Custom" Format="@DecimalFormat">
+                                            <FooterTemplate>
+                                                @{
+                                                    <div>
+                                                        <p>@GetWeightedAggregate("OutFlow")</p>
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </TreeGridAggregateColumn>
+                                    </TreeGridAggregateColumns>
+                                </TreeGridAggregate>
+                            </TreeGridAggregates>
+                        </SfTreeGrid>
+ *@
+                        <SfGrid DataSource="@Stmt"
+                                    GridLines="GridLine.Both"
+                                    Height="@GridHeight"
+                                    Width="100%"
+                                    AllowExcelExport="true"
+                                    IdMapping="ID"
+                                    ParentIdMapping="ParentID"
+                                    AllowPdfExport="true"
+                                    AllowPaging="true"
+                                AllowFiltering="true"
+                                AllowSorting="true"
+                                @ref="Grid"
+                                    RowHeight="18">
+                            <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel"></GridFilterSettings>
+                            <GridPageSettings PageSize="100"></GridPageSettings>
+
+                            <GridColumns>
+
+                                <GridColumn Field="@nameof(CashFlow.AccountCode)" HeaderText=@Localizer["Account Code"] Width="20%" TextAlign="TextAlign.Left" HeaderTextAlign="TextAlign.Left">
+                                    <Template>
+                                        @{
+                                            var AccName = (context as CashFlow);
+                                            var Name = AccName.AccountCode;
+                                            @if (AccName.AccountName == "Net Increase/Decrease")
+                                            {
+                                                <span>@Name</span>
+                                            }
+                                            else if ((AccName.ParentLevel == 1 || AccName.VoucherEntry == 0))
+                                            {
+                                                <span style="font-weight:bold">@Name</span>
+                                            }
+                                            else
+                                            {
+                                                <span>@Name</span>
+                                            }
+                                        }
+                                    </Template>
+                                </GridColumn>
+                                <GridColumn Field="@nameof(CashFlow.AccountName)" HeaderText=@Localizer["Account Name"] Width="50%" TextAlign="TextAlign.Left" HeaderTextAlign="TextAlign.Left">
+                                    <Template>
+                                        @{
+                                            var AccName = (context as CashFlow);
+                                            var Name = AccName.AccountName;
+                                            @if (AccName.AccountName == "Net Increase/Decrease")
+                                            {
+                                                <span>@Name</span>
+                                            }
+                                            else if ((AccName.ParentLevel == 1 || AccName.VoucherEntry == 0))
+                                            {
+                                                <span style="font-weight:bold">@Name</span>
+                                            }
+                                            else
+                                            {
+                                                <span>@Name</span>
+                                            }
+                                        }
+                                    </Template>
+                                </GridColumn>
+                                <GridColumn Field="@nameof(CashFlow.Inflow)" HeaderText=@Localizer["InFlow"] Width="20%" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Format="@DecimalFormat">
+                                    <Template>
+                                        @{
+                                            var AccName = (context as CashFlow);
+                                            string Value = Convert.ToDecimal(AccName.Inflow).ToString(DecimalFormat);
+                                            @if (AccName.AccountName == "Net Increase/Decrease")
+                                            {
+                                                <span>@Value</span>
+                                            }
+                                            else if ((AccName.ParentLevel == 1 || AccName.VoucherEntry == 0))
+                                            {
+                                                <span style="font-weight:bold">@Value</span>
+                                            }
+                                            else
+                                            {
+                                                <span>@Value</span>
+                                            }
+
+                                        }
+                                    </Template>
+                                </GridColumn>
+                                <GridColumn Field="@nameof(CashFlow.Outflow)" HeaderText=@Localizer["OutFlow"] Width="20%" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Format="@DecimalFormat">
+                                    <Template>
+                                        @{
+                                            var AccName = (context as CashFlow);
+                                            string Value = Convert.ToDecimal(AccName.Outflow).ToString(DecimalFormat);
+                                            @if (AccName.AccountName == "Net Increase/Decrease")
+                                            {
+                                                <span>@Value</span>
+                                            }
+                                            else if ((AccName.ParentLevel == 1 || AccName.VoucherEntry == 0))
+                                            {
+                                                <span style="font-weight:bold">@Value</span>
+                                            }
+                                            else
+                                            {
+                                                <span>@Value</span>
+                                            }
+
+                                        }
+                                    </Template>
+                                </GridColumn>
+                            </GridColumns>
+                            <GridAggregates>
+                                <GridAggregate ShowChildSummary="false">
+                                    <GridAggregateColumns>
+                                        <GridAggregateColumn Field="@nameof(CashFlow.Inflow)" Type="AggregateType.Custom" Format="@DecimalFormat">
+                                            <FooterTemplate>
+                                                @{
+
+                                                    <div>
+                                                        <p>@GetWeightedAggregate("InFlow")</p>
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </GridAggregateColumn>
+                                        <GridAggregateColumn Field="@nameof(CashFlow.Outflow)" Type="AggregateType.Custom" Format="@DecimalFormat">
+                                            <FooterTemplate>
+                                                @{
+                                                    <div>
+                                                        <p>@GetWeightedAggregate("OutFlow")</p>
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </GridAggregateColumn>
+                                    </GridAggregateColumns>
+                                </GridAggregate>
+                            </GridAggregates>
+                        </SfGrid>
+
+
+                }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+    @code {
+
+        private bool Detailed = false;
+        int user, BranchID, AccountID, ID;
+        public string Name, Remarks, FD, TD, FinYear;
+        public bool Isload = false;
+        DateTime SDate = DateTime.Now, EDate = DateTime.Now;
+        SfTreeGrid<CashFlow> TreeGrid { get; set; }
+        SfGrid<CashFlow> Grid { get; set; }
+        public IEnumerable<CashFlow> dataSource { get; set; }
+        IList<CashFlow> Stmt = new List<CashFlow>();
+        private string GridHeight = "500px";
+        public string? DecimalFormat { get; set; }
+        private Dictionary<string, object> ClearFilter = new Dictionary<string, object>()
+        {
+            { "title", "Clear Filter"}
+        };
+        protected override async Task OnInitializedAsync()
+        {
+            BranchID = await localStorage.GetItemAsync<int>("BranchID");
+            user = await localStorage.GetItemAsync<int>("UserID");
+            AccountID = await localStorage.GetItemAsync<int>("AccountID"); 
+            await FinancialDateService.InitializeDates();
+
+            if (user == 0)
+            {
+                string HomeUrl = "";
+                HomeUrl = await _UserRights.GetURl("Logout", AccountID);
+                uriHelper.NavigateTo(HomeUrl);
+            }
+            else
+            {
+                // var result = await FinServ.GetScalar("Select Entryfrom from company where id =" + BranchID);
+                // result = "{Scalar:" + result + "}";
+                // var ob = JObject.Parse(result.ToString());
+                // var dt = ob["Scalar"]["Entryfrom"].ToString();
+                // SDate = Convert.ToDateTime(dt);
+                // FinancialDateTime financialDate = await FinServ.GetFinancialDateTimeAsync(BranchID);
+                // SDate = financialDate.startDate;
+                // EDate = financialDate.endDate;
+                var dimension = await IJS.InvokeAsync<WindowDimension>("getWindowDimensions");
+                GridHeight = (dimension.Height - 180).ToString() + "px";
+                DecimalFormat = _GlobalServ.GlobalCurrencyFormat;
+                if (DecimalFormat == null || DecimalFormat == "")
+                {
+
+                    DecimalFormat = "0.00";
+                }
+                await base.OnInitializedAsync();
+            }
+
+
+
+        }
+        public async Task Search_Click()
+        {
+            try
+            {
+                 Isload = true;
+                 var open = 0;
+                 SDate = FinancialDateService.StartDate;
+                 EDate = FinancialDateService.EndDate;
+                 FD = SDate.Month.ToString("00") + "-" + SDate.Day.ToString("00") + "-" + SDate.Year;
+                 TD = EDate.Month.ToString("00") + "-" + EDate.Day.ToString("00") + "-" + EDate.Year;
+                 dataSource = (await _ICashFlow.Show(BranchID, FD.ToString(), TD.ToString())).ToList();
+                 foreach (var item in dataSource)
+                 {
+                     if (item.ID == -1)
+                     { item.ID = 0; }
+                     if (item.ParentID == -1 || item.ParentID == 0)
+                     { item.ParentID = null; }
+                 }
+                 if (Detailed == true)
+                     Stmt = dataSource.ToList();
+                 else
+                     Stmt = dataSource.Where(x => x.VoucherEntry == 0 && x.ShowRow == 1).ToList();
+                 Isload = false;
+                 await InvokeAsync(StateHasChanged);
+            }
+            catch (Exception e)
+            {
+                
+                throw e;
+            }
+            
+        }
+        public void OnRowSelected(RowSelectEventArgs<TrialBal> args)
+        {
+            if (args != null)
+            {
+                var ID = args.Data.ID;
+                FD = SDate.Month.ToString("00") + "-" + SDate.Day.ToString("00") + "-" + SDate.Year;
+                TD = EDate.Month.ToString("00") + "-" + EDate.Day.ToString("00") + "-" + EDate.Year;
+                var Query = BranchID + "," + FD + "," + TD + "," + ID;
+                string url = "StatementDetails/" + Query;
+                IJS.InvokeAsync<object>("open", url, "_blank");
+            }
+
+        }
+        public async Task ExcelExport()
+        {
+            await this.TreeGrid.ExportToExcelAsync();
+
+        }
+        public void ExportPdf()
+        {
+            PdfExportProperties PdfProperties = new PdfExportProperties();
+            PdfProperties.FileName = "TrialBalance.pdf";
+            this.TreeGrid.ExportToPdfAsync(PdfProperties);
+        }
+        public string GetWeightedAggregate(string dataField)
+        {
+            if (dataField == "InFlow")
+            {
+                var result = decimal.Parse(Queryable.Sum(dataSource.Where(x => x.VoucherEntry == 0 && x.ParentLevel == 0).Select(x => x.Inflow).AsQueryable()).ToString()).ToString("N2");
+                return result.ToString();
+            }
+            else if (dataField == "OutFlow")
+            {
+                var result = decimal.Parse(Queryable.Sum(dataSource.Where(x => x.VoucherEntry == 0 && x.ParentLevel == 0).Select(x => x.Outflow).AsQueryable()).ToString()).ToString("N2");
+                return result.ToString();
+            }
+            else
+                return "0.00";
+        }
+        private void onChange(Microsoft.AspNetCore.Components.ChangeEventArgs args)
+        {
+
+            if (dataSource != null)
+            {
+                if (Detailed == true)
+                    Stmt = dataSource.ToList();
+                else
+                    Stmt = dataSource.Where(x => x.VoucherEntry == 0 && x.ShowRow == 1).ToList();
+            }
+
+
+        }
+        public async Task Clear_Click()
+        {
+            await Grid!.SearchAsync("");
+            await Grid.ClearFilteringAsync();
+
+        }
+    }

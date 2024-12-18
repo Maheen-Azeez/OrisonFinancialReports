@@ -1,0 +1,11 @@
+E:\OrisonMIS_WASM\OrisonMIS\OrisonMIS\Shared\bin\Debug\net6.0\OrisonMIS.Shared.deps.json
+E:\OrisonMIS_WASM\OrisonMIS\OrisonMIS\Shared\bin\Debug\net6.0\OrisonMIS.Shared.dll
+E:\OrisonMIS_WASM\OrisonMIS\OrisonMIS\Shared\bin\Debug\net6.0\OrisonMIS.Shared.pdb
+E:\OrisonMIS_WASM\OrisonMIS\OrisonMIS\Shared\obj\Debug\net6.0\OrisonMIS.Shared.GeneratedMSBuildEditorConfig.editorconfig
+E:\OrisonMIS_WASM\OrisonMIS\OrisonMIS\Shared\obj\Debug\net6.0\OrisonMIS.Shared.AssemblyInfoInputs.cache
+E:\OrisonMIS_WASM\OrisonMIS\OrisonMIS\Shared\obj\Debug\net6.0\OrisonMIS.Shared.AssemblyInfo.cs
+E:\OrisonMIS_WASM\OrisonMIS\OrisonMIS\Shared\obj\Debug\net6.0\OrisonMIS.Shared.csproj.CoreCompileInputs.cache
+E:\OrisonMIS_WASM\OrisonMIS\OrisonMIS\Shared\obj\Debug\net6.0\OrisonMIS.Shared.dll
+E:\OrisonMIS_WASM\OrisonMIS\OrisonMIS\Shared\obj\Debug\net6.0\refint\OrisonMIS.Shared.dll
+E:\OrisonMIS_WASM\OrisonMIS\OrisonMIS\Shared\obj\Debug\net6.0\OrisonMIS.Shared.pdb
+E:\OrisonMIS_WASM\OrisonMIS\OrisonMIS\Shared\obj\Debug\net6.0\ref\OrisonMIS.Shared.dll

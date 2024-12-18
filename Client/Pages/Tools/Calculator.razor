@@ -1,0 +1,159 @@
+﻿@page "/calculator"
+
+@using System.Data
+
+<head>
+    <link href="css/calculator.css" rel="stylesheet" />
+</head>
+<div class="calc-body" @onkeydown="HandleKeyPress" tabindex="0">
+
+    <!-- Calculator Display Screen -->
+    <div class="calc-screen">
+        <div id="calc-operation">@HistoryValue</div>
+        <div id="calc-typed">@DisplayValue</div>
+    </div>
+
+    <!-- Calculator Buttons -->
+    <div class="calc-button-row">
+        <button class="ac" @onclick="@(() => Clear())">AC</button> <!-- Clear -->
+        <button class="opt" @onclick="@(() => ToggleSign())">&#43;&#47;&#8722;</button> <!-- Plus/Minus -->
+        <button class="opt" @onclick="@(() => Percentage())">&#37;</button> <!-- Percentage -->
+        <button class="opt" @onclick="@(() => OnButtonClick("/"))">&#247;</button> <!-- Division -->
+        <button @onclick="@(() => OnButtonClick("7"))">7</button>
+        <button @onclick="@(() => OnButtonClick("8"))">8</button>
+        <button @onclick="@(() => OnButtonClick("9"))">9</button>
+        <button class="opt" @onclick="@(() => OnButtonClick("×"))">&#215;</button> <!-- Multiplication -->
+        <button @onclick="@(() => OnButtonClick("4"))">4</button>
+        <button @onclick="@(() => OnButtonClick("5"))">5</button>
+        <button @onclick="@(() => OnButtonClick("6"))">6</button>
+        <button class="opt" @onclick="@(() => OnButtonClick("-"))">&#8722;</button> <!-- Minus -->
+        <button @onclick="@(() => OnButtonClick("1"))">1</button>
+        <button @onclick="@(() => OnButtonClick("2"))">2</button>
+        <button @onclick="@(() => OnButtonClick("3"))">3</button>
+        <button class="opt" @onclick="@(() => OnButtonClick("+"))">&#43;</button> <!-- Plus -->
+        <button @onclick="@(() => OnButtonClick("0"))">0</button>
+        <button @onclick="@(() => OnButtonClick("."))">.</button>
+        <button @onclick="@(() => Backspace())">&#9003;</button> <!-- Backspace -->
+        <button class="opt" @onclick="@(() => Calculate())">&#61;</button> <!-- Calculation -->
+
+    </div>
+</div>
+
+@code {
+    private string DisplayValue { get; set; } = string.Empty;
+    private string CurrentExpression { get; set; } = string.Empty;
+    private string HistoryValue { get; set; } = string.Empty;
+
+    private void OnButtonClick(string value)
+    {
+        if (value == "+" || value == "-" || value == "×" || value == "/")
+        {
+            // Avoid multiple operators in a row
+            if (string.IsNullOrEmpty(CurrentExpression) || "+-×/".Contains(CurrentExpression[^1]))
+                return;
+
+            CurrentExpression += value;
+        }
+        else
+        {
+            CurrentExpression += value;
+        }
+        DisplayValue += value;
+    }
+
+    private void Clear()
+    {
+        DisplayValue = string.Empty;
+        CurrentExpression = string.Empty;
+        HistoryValue = string.Empty; // Clear history
+    }
+
+    private void Calculate()
+    {
+        try
+        {
+            HistoryValue = CurrentExpression; // Set history to the current expression
+            string expression = CurrentExpression.Replace("×", "*");
+            DisplayValue = new DataTable().Compute(expression, null).ToString();
+            CurrentExpression = DisplayValue;
+        }
+        catch
+        {
+            DisplayValue = "Error";
+            CurrentExpression = string.Empty;
+        }
+    }
+
+    private void Backspace()
+    {
+        if (!string.IsNullOrEmpty(CurrentExpression))
+        {
+            CurrentExpression = CurrentExpression.Substring(0, CurrentExpression.Length - 1);
+            DisplayValue = DisplayValue.Substring(0, DisplayValue.Length - 1);
+        }
+    }
+
+    private void ToggleSign()
+    {
+        if (!string.IsNullOrEmpty(CurrentExpression) && decimal.TryParse(CurrentExpression, out decimal number))
+        {
+            number = -number;
+            CurrentExpression = number.ToString();
+            DisplayValue = CurrentExpression;
+        }
+    }
+
+    private void Percentage()
+    {
+        if (!string.IsNullOrEmpty(CurrentExpression) && decimal.TryParse(CurrentExpression, out decimal number))
+        {
+            number /= 100;
+            CurrentExpression = number.ToString();
+            DisplayValue = CurrentExpression;
+        }
+    }
+
+    private void HandleKeyPress(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "0":
+            case "1":
+            case "2":
+            case "3":
+            case "4":
+            case "5":
+            case "6":
+            case "7":
+            case "8":
+            case "9":
+                OnButtonClick(e.Key);
+                break;
+            case "+":
+            case "-":
+            case "/":
+            case "*":
+            case "×":
+                OnButtonClick(e.Key == "*" ? "×" : e.Key);
+                break;
+            case "Enter":
+                Calculate();
+                break;
+            case "Backspace":
+                Backspace();
+                break;
+            case "%":
+                Percentage();
+                break;
+            case ".":
+                OnButtonClick(".");
+                break;
+            case "Escape":
+                Clear();
+                break;
+            case "=":
+                Calculate();
+                break;
+        }
+    }
+}

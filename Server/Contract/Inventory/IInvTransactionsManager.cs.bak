@@ -1,0 +1,20 @@
+﻿using OrisonMISAPI.Entities.Inventory;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Threading.Tasks;
+
+namespace OrisonMISAPI.Contracts.Inventory
+{
+   public interface IInvTransactionsManager  
+    {
+        public Task<List<dtInvTransactions>> GetTransactions(long vid,string criteria);
+        public Task<List<dtInvTransactions>> GetImportTransactions(long vid, string SBasicType, string DBasicType);
+        Task<long> CreateTransactions(dtInvTransactions trans, IDbConnection db, IDbTransaction tran);
+
+        void UpdateTransactions(dtInvTransactions trans, IDbConnection db, IDbTransaction tran);
+        void DeleteTransactions(dtInvTransactions trans, IDbConnection db, IDbTransaction tran);
+
+    }
+}

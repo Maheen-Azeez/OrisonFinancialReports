@@ -1,0 +1,693 @@
+﻿@page "/StockItemEntry"
+@page "/StockItemEntry/{id}"
+@using OrisonMIS.Shared.Entities.Financial;
+@using Microsoft.AspNetCore.Components;
+ 
+@using OrisonMIS.Shared.Entities.Inventory;
+@using OrisonMIS.Shared.Entities.General;
+@using Syncfusion.Blazor.Buttons;
+@using Syncfusion.Blazor.Calendars;
+@using Syncfusion.Blazor.Popups;
+@using Syncfusion.Blazor.Inputs;
+@using Syncfusion.Blazor.DropDowns;
+@inject NavigationManager NavigationManager
+@inject HttpClient http
+@inject OrisonMIS.Client.Logics.Contract.Inventory.IInvAccounts _IInvAccounts
+@inject OrisonMIS.Client.Logics.Contract.Inventory.IInvAccountManager _InvAccountManager
+@inject OrisonMIS.Client.Logics.Contract.Financial.IItemMasterManager _ItemMasterManager;
+@inject OrisonMIS.Client.Logics.Contract.Inventory.IInvItemsManager _InvItemsManager;
+@inject Blazored.SessionStorage.ISessionStorageService localStorage
+@inject OrisonMIS.Client.Services.FinServices FinServ
+@inject OrisonMIS.Client.Services.UserRightsService _UserRights
+<head>
+    <link href="css/Loading.css" rel="stylesheet" />
+    <link href="css/OrisonSyncfusionStyles.css" rel="stylesheet" />
+</head>
+<div style="border-bottom:1px solid #000;">
+    <div class="col-md-12 form-row" style="padding-bottom:6px;">
+        <div class="col-md-9">
+            <SfButton IconCss="Icon add" Content="Add" @onclick="@New" Disabled="btnAdd"></SfButton>
+            <SfButton IconCss="Icon save" Content="Save" @onclick="@SaveAdd" Disabled="btnSave"></SfButton>
+            <SfButton IconCss="Icon edit" Content="Edit" @onclick="@SaveEdit" Disabled="btnEdit"></SfButton>
+            <SfButton IconCss="Icon back" Content="Back" @onclick="@btnRegister_Click"></SfButton>         
+        </div>
+        <div class="col-md-3" style="text-align:right">
+            <label style="color:#4e348d;font-size:large;font-weight:bold;">Add Item </label>
+        </div>
+    </div>
+</div>
+<div style="padding-top:10px;">
+    <div class="card-body1" style="padding:1.5%;">
+        <div>
+            <div class="form-row">
+                <div class="col-md-6">
+                    <div class="form-row">
+                        <div class="col-md-3">
+                            <label for="Code" class="control-label">Code:</label>
+                        </div>
+                        <div class="col-md-4">
+                            <SfTextBox Id="Item_Code" @bind-Value="@IM.ItemCode" CssClass="widthset"></SfTextBox>
+                        </div>
+                        <div class="col-md-5">
+                            <label>Active</label>
+                            <SfSwitch @bind-Checked="@Active"></SfSwitch>
+                        </div>
+                    </div>
+                    <div class="form-row" style="padding-top:0.3%;">
+                        <div class="col-md-3">
+                            <label for="Item_Name" class="control-label">Item Name:</label>
+                        </div>
+                        <div class="col-md-9">
+                            <SfTextBox Id="Item_Name" @bind-Value="@IM.ItemName" CssClass="widthset"></SfTextBox>
+                        </div>
+                    </div>
+                    <div class="form-row" style="padding-top:0.3%;">
+                        <div class="col-md-3">
+                            <label for="Address" class="control-label">Remarks:</label>
+                        </div>
+                        <div class="col-md-9">
+                            <SfTextBox Id="remarks" @bind-Value="@IM.Remarks" CssClass="widthset"></SfTextBox>
+                        </div>
+                    </div>
+                    <div class="form-row" style="padding-top:0.3%;">
+                        <div class="col-md-3">
+                            <label for="vat" class="control-label">VAT %:</label>
+                        </div>
+                        <div class="col-md-9">
+                            <SfNumericTextBox Id="vat" ShowSpinButton="false" @bind-Value="@Vatperc" Decimals="2" CssClass="widthset right-align"></SfNumericTextBox>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-row">
+                        <div class="col-md-3">
+                            <label for="Unit" class="control-label">Unit:</label>
+                        </div>
+                        <div class="col-md-9">
+                            <SfComboBox Placeholder="Unit" CssClass="widthset" Enabled="@btnUnit"
+                                        @bind-Value="@IM.Unit"
+                                        DataSource="@UnitMaster" FilterType="FilterType.Contains">
+                            </SfComboBox>
+                        </div>
+                    </div>
+                    <div class="form-row" style="padding-top:0.3%;">
+                        <div class="col-md-3">
+                            <label for="Category" class="control-label">Category:</label>
+                        </div>
+                        <div class="col-md-9">
+                            <SfComboBox CssClass="widthset"
+                                        @bind-Value="@IM.Category"
+                                        DataSource="@CategoryMaster" FilterType="FilterType.Contains">
+                            </SfComboBox>
+                        </div>
+                    </div>
+                    <div class="form-row" style="padding-top:0.3%;">
+                        <div class="col-md-3">
+                            <label for="Excise" class="control-label">Excise %:</label>
+                        </div>
+                        <div class="col-md-9">
+                            <SfNumericTextBox Id="excise" ShowSpinButton="false" @bind-Value="@IM.ExcisePercen" CssClass="widthset right-align"></SfNumericTextBox>
+                        </div>
+                    </div>
+                    <div class="form-row" style="padding-top:0.3%;">
+                        <div class="col-md-3">
+                            @*<label for="rate" class="control-label">V-Rate:</label>*@
+                        </div>
+                        <div class="col-md-9">
+                            @*<SfNumericTextBox Id="rate" ShowSpinButton="false" @bind-Value="@IM.Vrate" CssClass="widthset right-align"></SfNumericTextBox>*@
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="form-row" style="padding-top:1%;">
+                <div class="col-md-6" style="border: solid 1px #9673a5; padding: 1%; border-radius: 0.2cm">
+                    <div class="form-row" style="padding-top:0.3%;">
+                        <div class="col-md-3">
+                            <label for="location" class="control-label">Location:</label>
+                        </div>
+                        <div class="col-md-9">
+                            <SfComboBox Placeholder="Location" CssClass="widthset"
+                                        @bind-Value="@IM.Location"
+                                        DataSource="@Location" FilterType="FilterType.Contains">
+                            </SfComboBox>
+                        </div>
+
+
+                    </div>
+                    <div class="form-row" style="padding-top:0.3%;">
+                        <div class="col-md-3">
+                            <label for="group" class="control-label">Group:</label>
+                        </div>
+                        <div class="col-md-9">
+
+                            <SfComboBox Placeholder="Group" CssClass="widthset"
+                                        @bind-Value="@IM.MajorGroup"
+                                        DataSource="@MajorGroup" FilterType="FilterType.Contains">
+                            </SfComboBox>
+                        </div>
+
+
+                    </div>
+                    <div class="form-row" style="padding-top:0.3%;">
+                        <div class="col-md-3">
+                            <label for="subgroup" class="control-label">Sub Group:</label>
+                        </div>
+                        <div class="col-md-9">
+                            <SfComboBox Placeholder="Sub Group" CssClass="widthset"
+                                        @bind-Value="@IM.MiddleGroup"
+                                        DataSource="@MiddleGroup" FilterType="FilterType.Contains">
+                            </SfComboBox>
+                        </div>
+
+
+                    </div>
+                    <div class="form-row" style="padding-top:0.3%;">
+                        <div class="col-md-3">
+                            <label for="mingroup" class="control-label">Minor Group:</label>
+                        </div>
+                        <div class="col-md-9">
+
+                            <SfComboBox Placeholder="Minor Group" CssClass="widthset"
+                                        @bind-Value="@IM.MinorGroup"
+                                        DataSource="@MinorGroup" FilterType="FilterType.Contains">
+                            </SfComboBox>
+                        </div>
+
+
+                    </div>
+                </div>
+                <div class="col-md-6" style="border: solid 1px #9673a5; padding: 1%; border-radius: 0.2cm">
+                    <div class="form-row" style="padding-top:0.3%;">
+                        <div class="col-md-3">
+                            <label for="model" class="control-label">Brand/Model:</label>
+                        </div>
+                        <div class="col-md-9">
+                            <SfComboBox Placeholder="Model" CssClass="widthset"
+                                        @bind-Value="@IM.ModelNo"
+                                        DataSource="@Model" FilterType="FilterType.Contains">
+                            </SfComboBox>
+                        </div>
+
+
+                    </div>
+                    <div class="form-row" style="padding-top:0.3%;">
+                        <div class="col-md-3">
+                            <label for="oem" class="control-label">OEM No:</label>
+                        </div>
+                        <div class="col-md-9">
+                            <SfTextBox Id="oem" @bind-Value="@IM.Oemno" CssClass="widthset"></SfTextBox>
+                        </div>
+
+
+                    </div>
+                    <div class="form-row" style="padding-top:0.3%;">
+                        <div class="col-md-3">
+                            <label for="part" class="control-label">Part No:</label>
+                        </div>
+                        <div class="col-md-9">
+                            <SfTextBox Id="part_No" @bind-Value="@IM.PartNo" CssClass="widthset"></SfTextBox>
+                        </div>
+
+
+                    </div>
+                    <div class="form-row" style="padding-top:0.3%;">
+                        <div class="col-md-3">
+                            <label for="manu" class="control-label">Manufacturer:</label>
+                        </div>
+                        <div class="col-md-9">
+                            <SfComboBox Placeholder="Manufacture" CssClass="widthset"
+                                        @bind-Value="@IM.Manufacturer" AllowCustom="true"
+                                        DataSource="@Manufacturer" FilterType="FilterType.Contains">
+                            </SfComboBox>
+                        </div>
+
+
+                    </div>
+                </div>
+            </div>
+            <div class="form-row" style="padding-top: 1%; ">
+                <div class="col-md-6" style="border: solid 1px #9673a5; padding: 1%;border-radius: 0.2cm">
+                    <div class="form-row" style="padding-top:0.3%;">
+                        <div class="col-md-8">
+                            <div class="form-row">
+                                <div class="col-md-4">
+                                    <label for="level" class="control-label">Re-orderLevel:</label>
+                                </div>
+                                <div class="col-md-8">
+                                    <SfNumericTextBox Id="Reorderlevel" @bind-Value="@IM.Rol" CssClass="widthset" ShowSpinButton="false"></SfNumericTextBox>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-row">
+                                <div class="col-md-3">
+                                    <label for="qty" class="control-label">Qty:</label>
+                                </div>
+                                <div class="col-md-9">
+                                    <SfNumericTextBox Id="qty" @bind-Value="@IM.Roq" CssClass="widthset" ShowSpinButton="false"></SfNumericTextBox>
+                                </div>
+                            </div>
+                        </div>
+
+
+
+                    </div>
+                    <div class="form-row" style="padding-top:0.3%;">
+                        <div class="col-md-3">
+                            <label for="price" class="control-label">Selling Price:</label>
+                        </div>
+                        <div class="col-md-9">
+                            <SfNumericTextBox Id="sprice" @bind-Value="@IM.SellingPrice" CssClass="right-align" ShowSpinButton="false"></SfNumericTextBox>
+                        </div>
+
+
+                    </div>
+                    <div class="form-row" style="padding-top:0.3%;">
+                        <div class="col-md-3">
+                            <label for="CashPrice" class="control-label">Cash Price:</label>
+                        </div>
+                        <div class="col-md-9">
+                            <SfNumericTextBox Id="CashPrice" @bind-Value="@IM.CashPrice" CssClass="widthset right-align" ShowSpinButton="false"></SfNumericTextBox>
+                        </div>
+
+
+                    </div>
+                    <div class="form-row" style="padding-top:0.3%;">
+                        <div class="col-md-3">
+                            <label for="CrPrice" class="control-label">Credit Price:</label>
+                        </div>
+                        <div class="col-md-9">
+                            <SfNumericTextBox Id="CrPrice" @bind-Value="@IM.CreditPrice" CssClass="widthset right-align" ShowSpinButton="false"></SfNumericTextBox>
+                        </div>
+
+
+                    </div>
+                </div>
+                <div class="col-md-6" style="border: solid 1px #9673a5; padding: 1%; border-radius: 0.2cm">
+                    <div class="form-row" style="padding-top:0.3%;">
+                        <div class="col-md-3">
+                            <label for="model" class="control-label">Purch A/C:</label>
+                        </div>
+                        <div class="col-md-9">
+                            <SfComboBox TValue="int?" TItem="dtInvAccounts" Placeholder="Select A/C" @bind-Value="@IM.PurchaseAccountId" CssClass="e-multi-column" AllowFiltering="true" DataSource="@Purch" PopupHeight="300px" PopupWidth="300px">
+                                <ComboBoxTemplates TItem="dtInvAccounts">
+                                    <HeaderTemplate>
+                                        <table><tr><th class="background-color: lightgray; height: 28px; font-weight: bold">Code</th><th>Account Name</th></tr></table>
+                                    </HeaderTemplate>
+                                    <ItemTemplate>
+                                        <table><tbody><tr><td style="height:28px">@((context as dtInvAccounts).AccountCode)</td><td>@((context as dtInvAccounts).AccountName)</td></tr> </tbody></table>
+                                    </ItemTemplate>
+                                </ComboBoxTemplates>
+                                <ComboBoxFieldSettings Text="AccountName" Value="ID"></ComboBoxFieldSettings>
+                                <ComboBoxEvents TValue="int?" TItem="dtInvAccounts" ValueChange="OnChangePurch"></ComboBoxEvents>
+                            </SfComboBox>
+                        </div>
+
+
+                    </div>
+                    <div class="form-row" style="padding-top:0.3%;">
+                        <div class="col-md-3">
+                            <label for="oem" class="control-label">Sales A/C:</label>
+                        </div>
+                        <div class="col-md-9">
+                            <SfComboBox TValue="int?" TItem="dtInvAccounts" Placeholder="Select A/C" @bind-Value="@IM.SalesAccountId" CssClass="e-multi-column" AllowFiltering="true" DataSource="@Sales" PopupHeight="300px" PopupWidth="300px">
+                                <ComboBoxTemplates TItem="dtInvAccounts">
+                                    <HeaderTemplate>
+                                        <table><tr><th class="background-color: lightgray; height: 28px; font-weight: bold">Code</th><th>Account Name</th></tr></table>
+                                    </HeaderTemplate>
+                                    <ItemTemplate>
+                                        <table><tbody><tr><td style="height:28px">@((context as dtInvAccounts).AccountCode)</td><td>@((context as dtInvAccounts).AccountName)</td></tr> </tbody></table>
+                                    </ItemTemplate>
+                                </ComboBoxTemplates>
+                                <ComboBoxFieldSettings Text="AccountName" Value="ID"></ComboBoxFieldSettings>
+                                <ComboBoxEvents TValue="int?" TItem="dtInvAccounts" ValueChange="OnChangeSales"></ComboBoxEvents>
+                            </SfComboBox>
+                        </div>
+
+
+                    </div>
+                    <div class="form-row" style="padding-top:0.3%;">
+                        <div class="col-md-3">
+                            <label for="part" class="control-label">Cost A/C:</label>
+                        </div>
+                        <div class="col-md-9">
+                            <SfComboBox TValue="int?" TItem="dtInvAccounts" Placeholder="Select A/C" @bind-Value="@IM.CostAccountId" CssClass="e-multi-column" AllowFiltering="true" DataSource="@Cost" PopupHeight="300px" PopupWidth="300px">
+                                <ComboBoxTemplates TItem="dtInvAccounts">
+                                    <HeaderTemplate>
+                                        <table><tr><th class="background-color: lightgray; height: 28px; font-weight: bold">Code</th><th>Account Name</th></tr></table>
+                                    </HeaderTemplate>
+                                    <ItemTemplate>
+                                        <table><tbody><tr><td style="height:28px">@((context as dtInvAccounts).AccountCode)</td><td>@((context as dtInvAccounts).AccountName)</td></tr> </tbody></table>
+                                    </ItemTemplate>
+                                </ComboBoxTemplates>
+                                <ComboBoxFieldSettings Text="AccountName" Value="ID"></ComboBoxFieldSettings>
+                                <ComboBoxEvents TValue="int?" TItem="dtInvAccounts" ValueChange="OnChangeCost"></ComboBoxEvents>
+                            </SfComboBox>
+                        </div>
+
+
+                    </div>
+                    <div class="form-row" style="padding-top:0.3%;">
+                        <div class="col-md-3">
+                            <label for="manu" class="control-label">Inv A/C:</label>
+                        </div>
+                        <div class="col-md-9">
+                            <SfComboBox TValue="int?" TItem="dtInvAccounts" Placeholder="Select A/C" @bind-Value="@IM.InvAccountId" CssClass="e-multi-column" AllowFiltering="true" DataSource="@Inv" PopupHeight="300px" PopupWidth="300px">
+                                <ComboBoxTemplates TItem="dtInvAccounts">
+                                    <HeaderTemplate>
+                                        <table><tr><th class="background-color: lightgray; height: 28px; font-weight: bold">Code</th><th>Account Name</th></tr></table>
+                                    </HeaderTemplate>
+                                    <ItemTemplate>
+                                        <table><tbody><tr><td style="height:28px">@((context as dtInvAccounts).AccountCode)</td><td>@((context as dtInvAccounts).AccountName)</td></tr> </tbody></table>
+                                    </ItemTemplate>
+                                </ComboBoxTemplates>
+                                <ComboBoxFieldSettings Text="AccountName" Value="ID"></ComboBoxFieldSettings>
+                                <ComboBoxEvents TValue="int?" TItem="dtInvAccounts" ValueChange="OnChangeInv"></ComboBoxEvents>
+                            </SfComboBox>
+
+                        </div>
+
+
+                    </div>
+                </div>
+            </div>
+            @*<div class="form-row" style="visibility:hidden">
+                <div class="col-md-3">
+                    <label for="Date" class="control-label">Date:</label>
+                </div>
+                <div class="col-md-9">
+                    <SfDatePicker Id="Date" @bind-Value="@IM.CreatedDate" Format="dd/MM/yyyy"
+                                      CssClass="widthset" Readonly="true"></SfDatePicker>
+                </div>
+                <div class="col-md-4 form-row">
+                    <div class="col-md-3">
+                        <label for="Type" class="control-label">Type:</label>
+                    </div>
+                    <div class="col-md-9">
+                        <SfComboBox Placeholder="Select Type" CssClass="widthset"
+                                    @bind-Value="@IM.Department"
+                                    DataSource="@(new List<string>() { "New", "Regular" })">
+                        </SfComboBox>
+                    </div>
+                </div>
+            </div>*@
+
+        </div>
+
+    </div>
+</div>
+
+
+<SfDialog Height="20%" Width="20%" Target="#target" ShowCloseIcon="true" @bind-Visible="PopupVisible">
+    <DialogTemplates>
+        <Content>
+            <div>
+                <p style="color:green">
+                    @msg
+                </p>
+            </div>
+        </Content>
+    </DialogTemplates>
+    <DialogPositionData X="center" Y="top"></DialogPositionData>
+    <DialogAnimationSettings Effect="DialogEffect.Zoom"></DialogAnimationSettings>
+</SfDialog>
+
+@code
+{ [Parameter]
+    public string ID { get; set; }
+    bool PopupVisible { get; set; }
+
+    UserRights objUserRight = new UserRights();
+    dtItemMaster IM = new dtItemMaster();
+    int user, BranchID, AccountID;
+    bool btnSave, btnEdit, btnAdd,Active,btnUnit;
+    decimal Vatperc;
+    string mode, msg;
+    object tranexist;
+    public IEnumerable<dtItemMaster> dataSource;
+    public List<string> UnitMaster;
+    public List<string> CategoryMaster;
+    public List<string> Manufacturer;
+    public List<string> Location;
+    public List<string> Model;
+    public List<string> MajorGroup;
+    public List<string> MiddleGroup;
+    public List<string> MinorGroup;
+
+    public IList<dtInvAccounts> Inv = new List<dtInvAccounts>();
+    public IList<dtInvAccounts> Purch = new List<dtInvAccounts>();
+    public IList<dtInvAccounts> Sales = new List<dtInvAccounts>();
+    public IList<dtInvAccounts> Cost = new List<dtInvAccounts>();
+    //public List<dtInvAccounts> Accounts;
+    public string Code;
+
+    protected override async Task OnInitializedAsync()
+    {
+        BranchID = await localStorage.GetItemAsync<int>("BranchID");
+        user = await localStorage.GetItemAsync<int>("UserID");
+        AccountID = await localStorage.GetItemAsync<int>("AccountID");
+        try
+        {
+            objUserRight = await _UserRights.GetUserRights(user, "Item Master", "PMS", BranchID);
+        }
+        catch (Exception ex)
+        {
+            msg = "Permission Denied..";
+            PopupVisible = true;
+        }
+
+        if (user == 0)
+        {
+            NavigationManager.NavigateTo("Home");
+        }
+        else
+        {
+            if (objUserRight.AllowOpen == true)
+            {
+                btnUnit = true;
+                Sales = (await _ItemMasterManager.GetAccountsCombo("Item Sales Account", "Accounts")).ToList();
+                Purch = (await _ItemMasterManager.GetAccountsCombo("Item Purchase Account", "Accounts")).ToList();
+                Inv = (await _ItemMasterManager.GetAccountsCombo("Item Inventory Account", "Accounts")).ToList();
+                Cost = (await _ItemMasterManager.GetAccountsCombo("Item Cost Account", "Accounts")).ToList();
+                UnitMaster = (await _ItemMasterManager.GetCombo("unitmaster")).ToList();
+                CategoryMaster = (await _ItemMasterManager.GetCombo("category")).ToList();
+                MajorGroup = (await _ItemMasterManager.GetCombo("MajorGroup")).ToList();
+                MiddleGroup = (await _ItemMasterManager.GetCombo("MiddleGroup")).ToList();
+                MinorGroup = (await _ItemMasterManager.GetCombo("MinorGroup")).ToList();
+                btnSave = false;
+                btnEdit = true;
+                if (ID == null)
+                {
+                    ID = "0";
+
+                    btnAdd = true;
+                    btnEdit = true;
+                    btnSave = false;
+                    init_New();
+                }
+                else
+                {
+                    tranexist = await FinServ.GetScalar("declare @ID nvarchar(100) IF NOT EXISTS(select id from inv.Transactions where itemid='" + IM.Id + "') begin set @ID=NULL select @ID as ID end");
+                    await init_View();
+                }
+                //dataSource = (await _ItemMasterManager.GetItemMaster(ID));
+                //IM = dataSource.First();
+                //Vatperc = Convert.ToDecimal(IM.Vatpercen);
+            }
+            else
+            {
+                msg = "Permission Denied";
+                PopupVisible = true;
+            }
+
+        }
+
+    }
+
+
+    public async Task SaveAdd()
+    {
+        if(IM.Category==null)
+        {
+            msg = "Select Categery";
+            PopupVisible = true;
+        }
+        else if(IM.Unit==null)
+        {
+            msg = "Select Unit";
+            PopupVisible = true;
+        }
+        else if(IM.CostAccountId==null)
+        {
+            msg = "Select Cost Account";
+            PopupVisible = true;
+        }
+        else if (IM.InvAccountId == null)
+        {
+            msg = "Select Inv Account";
+            PopupVisible = true;
+        }
+        else if (IM.PurchaseAccountId == null)
+        {
+            msg = "Select Purchase Account";
+            PopupVisible = true;
+        }
+        else if (IM.SalesAccountId == null)
+        {
+            msg = "Select Sales Account";
+            PopupVisible = true;
+        }
+        else
+        {
+            int go = 0;
+            IM.StockItem = true;
+            IM.CreatedUserId = user;
+            IM.Vatpercen = Vatperc.ToString();
+            IM.Inactive = !Active;
+            if (mode.ToString() == "New")
+            {
+                IM.Criteria = "Insert";
+                IM.CreatedUserId = user;
+                object v = await FinServ.GetScalar("declare @ID nvarchar(100) IF NOT EXISTS(select id from inv.itemmaster where itemcode='" + IM.ItemCode + "') begin set @ID=NULL select @ID as ID end");
+                if (v.ToString().Split(':')[1].Replace('"', ' ').Replace('}', ' ') != "null ")
+                    go = 1;
+            }
+
+            else
+            {
+                IM.ModifiedUserId = user;
+                IM.Criteria = "Update";
+            }
+            if (go == 0)
+            {
+                HttpResponseMessage response = await _ItemMasterManager.CreateItemMaster(IM);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    if (mode.ToString() == "New")
+                        msg = "Saved Successfully!";
+                    else msg = "Updated";
+                    PopupVisible = true;
+                    init_View();
+                    //NavigationManager.NavigateTo("/ItemRegister", true);
+                }
+            }
+            else
+            {
+                msg = "Code Already exists.. Pls change!";
+                PopupVisible = true;
+            }
+
+        }
+
+
+    }
+    public async Task init_View()
+    {
+        dataSource = (await _ItemMasterManager.GetItemMaster(ID));
+        IM = dataSource.First();
+        Active = !IM.Inactive;
+        btnAdd = false;
+        btnEdit = false;
+        btnSave = true;
+    }
+    protected void SaveEdit()
+    {
+        if (objUserRight.AllowEdit == true)
+        {
+
+            btnSave = false;
+            btnEdit = true;
+            btnAdd = true;
+            init_Edit();
+        }
+        else
+        {
+            msg = "Permission Denied";
+            PopupVisible = true;
+        }
+
+    }
+    public async void init_Edit()
+    {
+        mode = "Update";
+        if(tranexist!=null)
+        {
+            if (tranexist.ToString().Split(':')[1].Replace('"', ' ').Replace('}', ' ') != "null ")
+            {
+                btnUnit = false;
+            }
+        }
+
+        //Active = !IM.Inactive;
+    }
+    protected void New()
+    {
+        if (objUserRight.AllowAdd == true)
+        {
+            btnSave = false;
+            btnEdit = true;
+            btnAdd = true;
+            init_New();
+        }
+        else
+        {
+            msg = "Permission Denied";
+            PopupVisible = true;
+        }
+
+    }
+    public void init_New()
+    {
+        mode = "New";
+
+        IM = new dtItemMaster();
+        IM.Inactive = false;
+        Active = true;
+        IM.Vatpercen = "5";
+    }
+
+    protected void btnRegister_Click()
+    {
+        NavigationManager.NavigateTo(NavigationManager.BaseUri+"ItemRegister");
+    }
+
+    //Change events
+    public void OnChangePurch(Syncfusion.Blazor.DropDowns.ChangeEventArgs<int?, dtInvAccounts> args)
+    {
+        if (args.ItemData != null)
+        {
+            IM.PurchaseAccountId = Convert.ToInt32(args.ItemData.ID);
+            IM.PurchaseAccount = args.ItemData.AccountName;
+        }
+
+    }
+    public void OnChangeSales(Syncfusion.Blazor.DropDowns.ChangeEventArgs<int?, dtInvAccounts> args)
+    {
+        if (args.ItemData != null)
+        {
+            IM.SalesAccountId = Convert.ToInt32(args.ItemData.ID);
+            IM.SalesAccount = args.ItemData.AccountName;
+        }
+
+    }
+    public void OnChangeInv(Syncfusion.Blazor.DropDowns.ChangeEventArgs<int?, dtInvAccounts> args)
+    {
+        if (args.ItemData != null)
+        {
+            IM.InvAccountId = Convert.ToInt32(args.ItemData.ID);
+            IM.InvAccount = args.ItemData.AccountName;
+        }
+
+    }
+    public void OnChangeCost(Syncfusion.Blazor.DropDowns.ChangeEventArgs<int?, dtInvAccounts> args)
+    {
+        if (args.ItemData != null)
+        {
+            IM.CostAccountId = Convert.ToInt32(args.ItemData.ID);
+            IM.CostAccount = args.ItemData.AccountName;
+        }
+
+    } }

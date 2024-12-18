@@ -1,0 +1,238 @@
+﻿@page "/StockRegister"
+@using OrisonMIS.Client.Services
+@using OrisonMIS.Shared.Entities
+@using OrisonMIS.Shared.Entities.Financial;
+@using Microsoft.AspNetCore.Components;
+@using OrisonMIS.Shared.Entities.General
+@using OrisonMIS.Shared.Entities.Inventory
+@using Syncfusion.Blazor.Buttons;
+@using Syncfusion.Blazor.TreeGrid;
+@using Syncfusion.Blazor.Inputs;
+@using Syncfusion.Blazor.Calendars;
+@using Syncfusion.Blazor.DropDowns;
+@using Syncfusion.Blazor.Grids;
+@using Syncfusion.Blazor.Spinner;
+@using Newtonsoft.Json;
+@using Newtonsoft.Json.Linq;
+@inject NavigationManager uriHelper
+@inject HttpClient http
+@inject GlobalService _GlobalServ
+@inject IJSRuntime IJS
+@inject FinancialDateTimeService FinancialDateService
+
+@inject Blazored.SessionStorage.ISessionStorageService _sessionStorage
+@inject OrisonMIS.Client.Logics.Contract.Inventory.IInventoryRegisterManager _InventoryRegisters
+@inject OrisonMIS.Client.Services.UserRightsService _UserRights
+@using Microsoft.Extensions.Localization
+@using OrisonMIS.Client.Resources
+@inject IStringLocalizer<SfResources> Localizer
+<head>
+    <link href="css/OrisonSyncfusionStyles.css" rel="stylesheet" />
+</head>
+
+<div>
+    <div class="box-card-shadow">
+        <div class="row">
+            <div class="col-sm-12" style="padding-bottom:7px;">
+                <div class="row" style="padding-top: 5px;">
+                    <div class="col-md-8">
+                        <SfButton @onclick="ExcelExport" IconCss="Icon excel" CssClass="e-btn" Content=@Localizer["Excel"] IsPrimary="false" />
+                        <SfButton @onclick="PdfExport" IconCss="Icon pdf" CssClass="e-btn" Content=@Localizer["PDF"] IsPrimary="false" />
+                    </div>
+                    <div class="col-md-4" style="text-align:end">
+                        <label class="page-heading">@Localizer["Stock Register"]</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="box-card-shadow">
+        <div class="row">
+            <div class="col-sm-12" style="padding-bottom:8px;">
+                <div class="row">
+                    <div class="col-md-12">
+                        <SfComboBox TValue="string" TItem="WareHosueDto" DataSource="@Warehouses" Placeholder=@Localizer["Select Warehouse"] Width="250px" CssClass="e-multi-column" AllowFiltering="true" PopupHeight="300px" Enabled="true">
+                            <ComboBoxFieldSettings Value="WHID" Text="WHCode"></ComboBoxFieldSettings>
+                            <ComboBoxEvents TItem="WareHosueDto" TValue="string" OnValueSelect="OnWarehouseSelect"></ComboBoxEvents>
+                        </SfComboBox>
+                        <SfDatePicker @bind-Value="@FinancialDateService.EndDate" Format="dd/MM/yyyy" title=@Localizer["To Date"] Width="140px" Placeholder=@Localizer["To Date"]></SfDatePicker>
+                        <SfButton IconCss="Icon search" @onclick="@Search_Click" title=@Localizer["Search"] CssClass="widthset"></SfButton>
+                        <SfTextBox @ref="search" Input="OnInput" Placeholder=@Localizer["Global Search"] Width="250px" ShowClearButton="true" CssClass="e-btn2"></SfTextBox>
+                        <SfButton IconCss="Icon filter" CssClass="e-btn4" Content=" " @onclick="@Clear_Click" HtmlAttributes="@ClearFilter"></SfButton>
+
+                        @if (Isload)
+                        {
+                            <img src="gif/loading-waiting.gif" style="padding-left:2px; width: 20px; height: 20px;" />
+                        }
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="box-card-shadow">
+        <div class="col-md-12 col-sm-12">
+            <div class="row" style="padding-top:0px;">
+                <div class="table-responsive" style="position: relative;min-height:600px; min-width: 300px ">
+
+                    <SfGrid DataSource="dataSource"
+                            GridLines="@GridLine.Vertical"
+                            EnableHover="true"
+                            EnableVirtualization="true"
+                            Height="@GridHeight"
+                            Width="100%"
+                            @ref="Grid"
+                            AllowFiltering="true"
+                            AllowResizing="true"
+                            AllowPdfExport="true"
+                            AllowPaging="true"
+                            AllowSorting="true"
+                            AllowExcelExport="true"
+                            RowHeight="25">
+                        <GridPageSettings PageSize="100"></GridPageSettings>
+                        
+
+                        <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel" ShowFilterBarStatus="true"></GridFilterSettings>
+                        <GridColumns>
+                            <GridColumn Field="@nameof(StockRegisterDto.ItemCode)" HeaderText="Item Code" HeaderTextAlign="TextAlign.Left" Width="100" />
+                            <GridColumn Field="@nameof(StockRegisterDto.BarCode)" HeaderText="Bar Code" HeaderTextAlign="TextAlign.Left" Width="100" />
+                            <GridColumn Field="@nameof(StockRegisterDto.ItemName)" HeaderText="Item Name" HeaderTextAlign="TextAlign.Left" Width="150" />
+                            <GridColumn Field="@nameof(StockRegisterDto.Unit)" HeaderText="Unit" HeaderTextAlign="TextAlign.Left" Width="70" />
+                            <GridColumn Field="@nameof(StockRegisterDto.StockInUnit)" HeaderText="StockInUnit" HeaderTextAlign="TextAlign.Left" Width="70" />
+                            <GridColumn Field="@nameof(StockRegisterDto.SellingPrice)" HeaderText="Selling Price"  Width="100" Format="0.00" HeaderTextAlign="TextAlign.Left" TextAlign="TextAlign.Right" />
+                            <GridColumn Field="@nameof(StockRegisterDto.PartNo)" HeaderText="Part No" HeaderTextAlign="TextAlign.Left" Width="100" />
+                            <GridColumn Field="@nameof(StockRegisterDto.ModelNo)" HeaderText="Model No" HeaderTextAlign="TextAlign.Left"  Width="100" />
+                            <GridColumn Field="@nameof(StockRegisterDto.OEMNo)" HeaderText="OEM No" HeaderTextAlign="TextAlign.Left" Width="100" />
+                            <GridColumn Field="@nameof(StockRegisterDto.Remarks)" HeaderText="Remarks" HeaderTextAlign="TextAlign.Left" Width="150" />
+                            <GridColumn Field="@nameof(StockRegisterDto.ROL)" HeaderText="Remarks" HeaderTextAlign="TextAlign.Left" Width="150" />
+                            <GridColumn Field="@nameof(StockRegisterDto.Cost)" HeaderText="Cost" Width="100" Format="0.00" HeaderTextAlign="TextAlign.Left" TextAlign="TextAlign.Right" />
+                            <GridColumn Field="@nameof(StockRegisterDto.LastPrice)" HeaderText="Last Price" Width="100" HeaderTextAlign="TextAlign.Left" Format="0.00" TextAlign="TextAlign.Right" />
+                            <GridColumn Field="@nameof(StockRegisterDto.Stock)" HeaderText="Stock Value" Width="80" HeaderTextAlign="TextAlign.Left" Format="0.00" TextAlign="TextAlign.Right" />
+                            <GridColumn Field="@nameof(StockRegisterDto.ID)" HeaderText="ID" HeaderTextAlign="TextAlign.Left" Width="50" />
+                            <GridColumn Field="@nameof(StockRegisterDto.Location)" HeaderText="Location" HeaderTextAlign="TextAlign.Left" Width="100" />
+                            <GridColumn Field="@nameof(StockRegisterDto.Category)" HeaderText="Category" HeaderTextAlign="TextAlign.Left" Width="100" />
+                            <GridColumn Field="@nameof(StockRegisterDto.MajorGroup)" HeaderText="MajorGroup" HeaderTextAlign="TextAlign.Left" Width="100" />
+                            <GridColumn Field="@nameof(StockRegisterDto.MiddleGroup)" HeaderText="MiddleGroup" HeaderTextAlign="TextAlign.Left" Width="100" />
+                            <GridColumn Field="@nameof(StockRegisterDto.MinorGroup)" HeaderText="MinorGroup" HeaderTextAlign="TextAlign.Left" Width="100" />
+                            <GridColumn Field="@nameof(StockRegisterDto.Rating)" HeaderText="Rating" HeaderTextAlign="TextAlign.Left" Width="100" />
+                        </GridColumns>
+
+                    </SfGrid>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    int user, BranchID, AccountID, ID;
+    public string? Name, Remarks, FD, TD, FinYear;
+    public bool Isload = false;
+    string GridHeight = "500px";
+    public string register { get; set; } = "registers";
+    public int SelectedWarehouseId { get; set; }
+    public string? DecimalFormat { get; set; }
+    DateTime EDate = DateTime.Now;
+    public List<StockRegisterDto> dataSource = new List<StockRegisterDto>();
+    SfGrid<StockRegisterDto> Grid { get; set; }
+    private IEnumerable<WareHosueDto> Warehouses { get; set; }
+    private Dictionary<string, object> ClearFilter = new Dictionary<string, object>()
+    {
+        { "title", "Clear Filter"}
+    };
+    protected override async Task OnInitializedAsync()
+    {
+        Isload = true;
+        try
+        {
+            await GetSessionDetails();
+            if (user == 0) { uriHelper.NavigateTo(await _UserRights.GetURl("Logout", AccountID)); }
+            await FinancialDateService.InitializeDates();
+            await SetGridFormatAndStyle();
+            Warehouses = await _InventoryRegisters.FetchWarehouses(BranchID); ;
+
+        }
+        catch (Exception ex)
+        {
+
+            throw ex;
+        }
+        finally
+        {
+            Isload = false;
+            await InvokeAsync(StateHasChanged);
+        }
+
+
+    }
+    public async Task GetSessionDetails()
+    {
+        BranchID = await _sessionStorage.GetItemAsync<int>("BranchID");
+        user = await _sessionStorage.GetItemAsync<int>("UserID");
+        AccountID = await _sessionStorage.GetItemAsync<int>("AccountID");
+        await FinancialDateService.InitializeDates();
+    }
+    public async Task SetGridFormatAndStyle()
+    {
+        DecimalFormat = _GlobalServ.GlobalCurrencyFormat == null ? "0.00" : _GlobalServ.GlobalCurrencyFormat;
+        var dimension = await IJS.InvokeAsync<WindowDimension>("getWindowDimensions");
+        GridHeight = (dimension.Height - 180).ToString() + "px";
+    }
+    public async Task Search_Click()
+    {
+        try
+        {
+            Isload = true;
+            EDate = FinancialDateService.EndDate;
+            TD = EDate.Month.ToString("00") + "-" + EDate.Day.ToString("00") + "-" + EDate.Year;
+            dataSource = await _InventoryRegisters.FetchStockRegister(TD.ToString(), BranchID, SelectedWarehouseId);
+
+
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+        finally
+        {
+            Isload = false;
+        }
+
+    }
+    public async Task ExcelExport()
+    {
+        ExcelExportProperties excelProperties = new ExcelExportProperties
+            {
+                FileName = "StockRegister.xlxs",
+            };
+        await this.Grid.ExportToExcelAsync(excelProperties);
+    }
+    public async Task PdfExport()
+    {
+        PdfExportProperties pdfProperties = new PdfExportProperties
+            {
+                FileName = "StockRegister.pdf",
+                PageSize = PdfPageSize.A1
+            };
+        await this.Grid.ExportToPdfAsync(pdfProperties);
+    }
+    SfTextBox search;
+    public void OnInput(InputEventArgs args)
+    {
+        this.Grid.SearchAsync(args.Value);
+        this.StateHasChanged();
+    }
+    public async Task Clear_Click()
+    {
+        await Grid!.SearchAsync("");
+        await Grid.ClearFilteringAsync();
+
+    }
+    public void OnWarehouseSelect(SelectEventArgs<WareHosueDto> args)
+    {
+        SelectedWarehouseId = args.ItemData.WHID;
+    }
+}

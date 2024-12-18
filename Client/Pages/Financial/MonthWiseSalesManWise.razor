@@ -1,0 +1,411 @@
+﻿@page "/MonthwiseSalesManWise"
+@using OrisonMIS.Client.Services
+@using OrisonMIS.Shared.Entities
+@using OrisonMIS.Shared.Entities.Financial;
+@using Microsoft.AspNetCore.Components;
+@using OrisonMIS.Shared.Entities.General
+@using Syncfusion.Blazor.Buttons;
+@using Syncfusion.Blazor.TreeGrid;
+@using Syncfusion.Blazor.Inputs;
+@using Syncfusion.Blazor.Calendars;
+@using Syncfusion.Blazor.DropDowns;
+@using Syncfusion.Blazor.Grids;
+@using Syncfusion.Blazor.Spinner;
+@using Newtonsoft.Json;
+@using Newtonsoft.Json.Linq;
+@inject NavigationManager uriHelper
+@inject HttpClient http
+@inject GlobalService _GlobalServ
+@inject IJSRuntime IJS
+@inject Blazored.SessionStorage.ISessionStorageService localStorage
+@inject OrisonMIS.Client.Services.FinServices FinServ
+@inject OrisonMIS.Client.Services.UserRightsService _UserRights
+@inject OrisonMIS.Client.Logics.Contract.Financial.IFinancialManager _financial
+@using Microsoft.Extensions.Localization
+@using OrisonMIS.Client.Resources
+@inject IStringLocalizer<SfResources> Localizer
+<head>
+    <link href="css/OrisonSyncfusionStyles.css" rel="stylesheet" />
+</head>
+
+<div>
+    <div class="box-card-shadow">
+        <div class="row">
+            <div class="col-sm-12" style="padding-bottom:7px;">
+                <div class="row" style="padding-top: 5px;">
+                    <div class="col-md-8">
+                        <SfButton @onclick="ExcelExport" IconCss="Icon excel" CssClass="e-btn" Content=@Localizer["Excel"] IsPrimary="false" />
+                        <SfButton @onclick="PdfExport" IconCss="Icon pdf" CssClass="e-btn" Content=@Localizer["PDF"] IsPrimary="false" />
+                    </div>
+                    <div class="col-md-4" style="text-align:end">
+                        <label class="page-heading">@Localizer["Month-Wise"]</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="box-card-shadow">
+        <div class="row">
+            <div class="col-sm-12" style="padding-bottom:8px;">
+                <div class="row">
+                    <div class="col-md-12">
+                        @* <SfComboBox TValue="string" TItem="string" Placeholder="Select Type" Width="250px" @bind-Value="@BasicType" CssClass="e-multi-column"
+                                    AllowFiltering="true" DataSource="@TypeList" PopupHeight="300px" Enabled="true">
+                        </SfComboBox> *@
+                        <SfDatePicker @bind-Value="@SDate" Format="yyyy" title=@Localizer["Select year"] Start='CalendarView.Decade' Depth='CalendarView.Decade' Width="140px" Placeholder=@Localizer["Select year"]></SfDatePicker>
+                        <SfButton IconCss="Icon search" @onclick="@Search_Click" title=@Localizer["Search"] CssClass="widthset"></SfButton>
+                        <SfTextBox @ref="search" Input="OnInput" Placeholder=@Localizer["Global Search"] Width="250px" ShowClearButton="true" CssClass="e-btn2"></SfTextBox>
+                        <SfButton IconCss="Icon filter" CssClass="e-btn4" Content=" " @onclick="@Clear_Click" HtmlAttributes="@ClearFilter"></SfButton>
+
+                        @if (Isload)
+                        {
+                            <img src="gif/loading-waiting.gif" style="padding-left:2px; width: 20px; height: 20px;" />
+                        }
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="box-card-shadow">
+        <div class="col-md-12 col-sm-12">
+            <div class="row" style="padding-top:0px;">
+                <div class="table-responsive" style="position: relative;min-height:600px; min-width: 300px ">
+
+                    @if (dataSource == null)
+                    {
+                        <p><em>No data...</em></p>
+                    }
+                    else
+                    {
+                        <SfGrid DataSource="dataSource"
+                                GridLines="@GridLine.Vertical"
+                                EnableHover="true"
+                                EnableVirtualization="true"
+                                Height="@GridHeight"
+                                Width="100%"
+                                @ref="Grid"
+                                AllowSorting="true"
+                                AllowFiltering="true"
+                                AllowResizing="true"
+                                AllowPdfExport="true"
+                                AllowPaging="true"
+                                AllowExcelExport="true"
+                                RowHeight="25">
+                            <GridPageSettings PageSize="100"></GridPageSettings>
+                            <GridAggregates>
+                                <GridAggregate>
+                                    <GridAggregateColumns>
+                                        <GridAggregateColumn Format="@DecimalFormat" Field=@nameof(dtMonthwiseSales.M1) Type="AggregateType.Sum">
+                                            <FooterTemplate>
+                                                @{
+                                                    var aggregate = (context as AggregateTemplateContext);
+                                                    <div>
+
+                                                        <div style="align-items:end;">@aggregate.Sum</div>
+
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </GridAggregateColumn>
+                                        <GridAggregateColumn Format="@DecimalFormat" Field=@nameof(dtMonthwiseSales.M2) Type="AggregateType.Sum">
+                                            <FooterTemplate>
+                                                @{
+                                                    var aggregate = (context as AggregateTemplateContext);
+                                                    <div>
+
+                                                        <div style="align-items:end;">@aggregate.Sum</div>
+
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </GridAggregateColumn>
+
+                                        <GridAggregateColumn Format="@DecimalFormat" Field=@nameof(dtMonthwiseSales.M3) Type="AggregateType.Sum">
+                                            <FooterTemplate>
+                                                @{
+                                                    var aggregate = (context as AggregateTemplateContext);
+                                                    <div>
+
+                                                        <div style="align-items:end;">@aggregate.Sum</div>
+
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </GridAggregateColumn><GridAggregateColumn Format="@DecimalFormat" Field=@nameof(dtMonthwiseSales.M4) Type="AggregateType.Sum">
+                                            <FooterTemplate>
+                                                @{
+                                                    var aggregate = (context as AggregateTemplateContext);
+                                                    <div>
+
+                                                        <div style="align-items:end;">@aggregate.Sum</div>
+
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </GridAggregateColumn><GridAggregateColumn Format="@DecimalFormat" Field=@nameof(dtMonthwiseSales.M5) Type="AggregateType.Sum">
+                                            <FooterTemplate>
+                                                @{
+                                                    var aggregate = (context as AggregateTemplateContext);
+                                                    <div>
+
+                                                        <div style="align-items:end;">@aggregate.Sum</div>
+
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </GridAggregateColumn><GridAggregateColumn Format="@DecimalFormat" Field=@nameof(dtMonthwiseSales.M6) Type="AggregateType.Sum">
+                                            <FooterTemplate>
+                                                @{
+                                                    var aggregate = (context as AggregateTemplateContext);
+                                                    <div>
+
+                                                        <div style="align-items:end;">@aggregate.Sum</div>
+
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </GridAggregateColumn>
+                                        <GridAggregateColumn Format="@DecimalFormat" Field=@nameof(dtMonthwiseSales.M7) Type="AggregateType.Sum">
+                                            <FooterTemplate>
+                                                @{
+                                                    var aggregate = (context as AggregateTemplateContext);
+                                                    <div>
+
+                                                        <div style="align-items:end;">@aggregate.Sum</div>
+
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </GridAggregateColumn>
+                                        <GridAggregateColumn Format="@DecimalFormat" Field=@nameof(dtMonthwiseSales.M8) Type="AggregateType.Sum">
+                                            <FooterTemplate>
+                                                @{
+                                                    var aggregate = (context as AggregateTemplateContext);
+                                                    <div>
+
+                                                        <div style="align-items:end;">@aggregate.Sum</div>
+
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </GridAggregateColumn>
+                                        <GridAggregateColumn Format="@DecimalFormat" Field=@nameof(dtMonthwiseSales.M9) Type="AggregateType.Sum">
+                                            <FooterTemplate>
+                                                @{
+                                                    var aggregate = (context as AggregateTemplateContext);
+                                                    <div>
+
+                                                        <div style="align-items:end;">@aggregate.Sum</div>
+
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </GridAggregateColumn>
+                                        <GridAggregateColumn Format="@DecimalFormat" Field=@nameof(dtMonthwiseSales.M10) Type="AggregateType.Sum">
+                                            <FooterTemplate>
+                                                @{
+                                                    var aggregate = (context as AggregateTemplateContext);
+                                                    <div>
+
+                                                        <div style="align-items:end;">@aggregate.Sum</div>
+
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </GridAggregateColumn>
+                                        <GridAggregateColumn Format="@DecimalFormat" Field=@nameof(dtMonthwiseSales.M11) Type="AggregateType.Sum">
+                                            <FooterTemplate>
+                                                @{
+                                                    var aggregate = (context as AggregateTemplateContext);
+                                                    <div>
+
+                                                        <div style="align-items:end;">@aggregate.Sum</div>
+
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </GridAggregateColumn>
+                                        <GridAggregateColumn Format="@DecimalFormat" Field=@nameof(dtMonthwiseSales.M12) Type="AggregateType.Sum">
+                                            <FooterTemplate>
+                                                @{
+                                                    var aggregate = (context as AggregateTemplateContext);
+                                                    <div>
+
+                                                        <div style="align-items:end;">@aggregate.Sum</div>
+
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </GridAggregateColumn>
+                                        <GridAggregateColumn Format="@DecimalFormat" Field=@nameof(dtMonthwiseSales.M13) Type="AggregateType.Sum">
+                                            <FooterTemplate>
+                                                @{
+                                                    var aggregate = (context as AggregateTemplateContext);
+                                                    <div>
+
+                                                        <div style="align-items:end;">@aggregate.Sum</div>
+
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </GridAggregateColumn>
+
+                                    </GridAggregateColumns>
+                                </GridAggregate>
+                            </GridAggregates>
+
+                            <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel" ShowFilterBarStatus="true"></GridFilterSettings>
+                            <GridColumns>
+                                <GridColumn Field="@nameof(dtMonthwiseSales.SalesmanCode)" HeaderText=@Localizer["SCode"] Width="100" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(dtMonthwiseSales.Salesman)" HeaderText=@Localizer["SalesMan"] Width="250" Format="0.00" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(dtMonthwiseSales.M1)" HeaderText=@Localizer["1"] Width="100" Format="0.00" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(dtMonthwiseSales.M2)" HeaderText=@Localizer["2"] Width="100" Format="0.00" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(dtMonthwiseSales.M3)" HeaderText=@Localizer["3"] Width="100" Format="0.00" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(dtMonthwiseSales.M4)" HeaderText=@Localizer["4"] Width="100" Format="0.00" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(dtMonthwiseSales.M5)" HeaderText=@Localizer["5"] Width="100" Format="0.00" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(dtMonthwiseSales.M6)" HeaderText=@Localizer["6"] Width="100" Format="0.00" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(dtMonthwiseSales.M7)" HeaderText=@Localizer["7"] Width="100" Format="0.00" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(dtMonthwiseSales.M8)" HeaderText=@Localizer["8"] Width="100" Format="0.00" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(dtMonthwiseSales.M9)" HeaderText=@Localizer["9"] Width="100" Format="0.00" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(dtMonthwiseSales.M10)" HeaderText=@Localizer["10"] Width="100" Format="0.00" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(dtMonthwiseSales.M11)" HeaderText=@Localizer["11"] Width="100" Format="0.00" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(dtMonthwiseSales.M12)" HeaderText=@Localizer["12"] Width="100" Format="0.00" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(dtMonthwiseSales.M13)" HeaderText=@Localizer["13"] Width="100" Format="0.00" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left"></GridColumn>
+
+                            </GridColumns>
+
+                        </SfGrid>
+
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    int user, BranchID, AccountID, ID;
+    public string? Name, Remarks, FD, TD, FinYear;
+    public bool Isload = false;
+    string GridHeight = "500px";
+    public string register { get; set; } = "registers";
+    public string BasicType { get; set; }
+    IList<string> TypeList = new List<string>()
+    {
+        "Sales",
+        "Payment",
+        "Purchase"
+    };
+    public string? DecimalFormat { get; set; }
+    DateTime SDate = DateTime.Now, EDate = DateTime.Now;
+    public List<dtMonthwiseSales> dataSource = new List<dtMonthwiseSales>();
+    SfGrid<dtMonthwiseSales> Grid { get; set; }
+    private Dictionary<string, object> ClearFilter = new Dictionary<string, object>()
+        {
+            { "title", "Clear Filter"}
+        };
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            Isload = true;
+            BranchID = await localStorage.GetItemAsync<int>("BranchID");
+            user = await localStorage.GetItemAsync<int>("UserID");
+            AccountID = await localStorage.GetItemAsync<int>("AccountID");
+            BasicType = TypeList.FirstOrDefault().ToString();
+            if (user == 0)
+            {
+                string HomeUrl = "";
+                HomeUrl = await _UserRights.GetURl("Logout", AccountID);
+                uriHelper.NavigateTo(HomeUrl);
+            }
+            else
+            {
+                // var result = await FinServ.GetScalar("Select Entryfrom from company where id =" + BranchID);
+                // result = "{Scalar:" + result + "}";
+                // var ob = JObject.Parse(result.ToString());
+                // var dt = ob["Scalar"]["Entryfrom"].ToString();
+                // SDate = Convert.ToDateTime(dt);
+                // FinancialDateTime financialDate = await FinServ.GetFinancialDateTimeAsync(BranchID);
+                // SDate = financialDate.startDate;
+                // EDate = financialDate.endDate;
+                var dimension = await IJS.InvokeAsync<WindowDimension>("getWindowDimensions");
+                GridHeight = (dimension.Height - 180).ToString() + "px";
+                DecimalFormat = _GlobalServ.GlobalCurrencyFormat;
+                if (DecimalFormat == null || DecimalFormat == "")
+                {
+
+                    DecimalFormat = "0.00";
+                }
+            }
+
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+
+            throw ex;
+        }
+        finally
+        {
+            Isload = false;
+        }
+
+
+    }
+    public async Task Search_Click()
+    {
+        try
+        {
+            Isload = true;
+            // FD = SDate.Month.ToString("00") + "-" + SDate.Day.ToString("00") + "-" + SDate.Year;
+            // TD = EDate.Month.ToString("00") + "-" + EDate.Day.ToString("00") + "-" + EDate.Year;
+            int year = SDate.Year;
+            dataSource = await _financial.GetMonthWiseSales(BranchID,"", "", "Sales",year);
+
+
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+        finally
+        {
+            Isload = false;
+        }
+
+    }
+    public async Task ExcelExport()
+    {
+        ExcelExportProperties excelProperties = new ExcelExportProperties
+            {
+                FileName = "MONTH_WISE.xlxs",
+            };
+        await this.Grid.ExportToExcelAsync(excelProperties);
+    }
+    public async Task PdfExport()
+    {
+        PdfExportProperties pdfProperties = new PdfExportProperties
+            {
+                FileName = "MONTH_WISE.pdf",
+                PageSize = PdfPageSize.A1
+            };
+        await this.Grid.ExportToPdfAsync(pdfProperties);
+    }
+    SfTextBox search;
+    public void OnInput(InputEventArgs args)
+    {
+        this.Grid.SearchAsync(args.Value);
+        this.StateHasChanged();
+    }
+    public async Task Clear_Click()
+    {
+        await Grid!.SearchAsync("");
+        await Grid.ClearFilteringAsync();
+
+    }
+}

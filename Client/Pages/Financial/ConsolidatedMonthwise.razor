@@ -1,0 +1,642 @@
+﻿@page "/ConsolidatedMonthwise"
+@using OrisonMIS.Client.Services
+@using OrisonMIS.Shared.BoldReport
+@using OrisonMIS.Shared.Entities.Financial;
+@using OrisonMIS.Shared.Entities.General;
+@using Microsoft.AspNetCore.Components;
+@using OrisonMIS.Shared.Entities.Inventory;
+@using Syncfusion.Blazor.Buttons;
+@using Syncfusion.Blazor.TreeGrid;
+@using Syncfusion.Blazor.Grids;
+@using Syncfusion.Blazor.Calendars;
+@using Syncfusion.Blazor.Spinner;
+@using Syncfusion.Blazor.Popups;
+@using Syncfusion.Blazor.DropDowns;
+@using Syncfusion.Blazor.Notifications;
+@using System.Data;
+@using Syncfusion.Blazor.Data;
+@using Syncfusion.Blazor.Inputs;
+@using Newtonsoft.Json;
+@using Newtonsoft.Json.Linq;
+@using System.Dynamic
+@inject OrisonMIS.Client.Services.FinServices FinServ
+@inject OrisonMIS.Client.Services.UserRightsService _UserRights
+@inject GlobalService _GlobalServ
+@inject NavigationManager uriHelper
+@inject HttpClient http
+@inject IJSRuntime IJS
+@inject OrisonMIS.Client.Logics.Contract.BoldReport.IBoldReportManager _BoldReport
+@inject OrisonMIS.Client.Logics.Contract.General.ICompanyManager _ICompanyManager
+@inject OrisonMIS.Client.Logics.Contract.Financial.IConsolidated _IConsolidated
+@inject OrisonMIS.Client.Logics.Contract.Inventory.IInvAccounts _IInvAccounts
+@inject OrisonMIS.Client.Logics.Contract.Inventory.IInvAccountManager _InvAccountManager
+@inject OrisonMIS.Client.Logics.Contract.Financial.IItemMasterManager _ItemMasterManager
+@inject OrisonMIS.Client.Logics.Contract.Inventory.IInvItemsManager _InvItemsManager
+@inject Blazored.SessionStorage.ISessionStorageService localStorage
+@inject FinancialDateTimeService FinancialDateService
+
+@using Microsoft.Extensions.Localization
+@using OrisonMIS.Client.Resources
+@inject IStringLocalizer<SfResources> Localizer
+
+<head>
+    <link href="css/OrisonSyncfusionStyles.css" rel="stylesheet" />
+</head>
+<div class="col-lg-12 control-section toast-default-section">
+    <SfToast ID="toast_type" @ref="ToastObj">
+        <ToastPosition X="@ToastPosition"></ToastPosition>
+    </SfToast>
+</div>
+<div>
+    <div class="box-card-shadow">
+
+        <div class="row">
+            <div class="col-sm-12" style="padding-bottom:7px;">
+                <div class="row" style="padding-top: 5px;">
+                    <div class="col-md-4">
+                        <SfButton @onclick="ExcelExport" IconCss="Icon excel" CssClass="e-btn" Content=@Localizer["Excel"] IsPrimary="false" />
+                        <SfButton @onclick="ExportPdf" IconCss="Icon pdf" CssClass="e-btn" Content=@Localizer["PDF"] IsPrimary="false" />
+
+                    </div>
+                    <div class="col-md-4 text-center">
+                        @if (AccountName != null && AccountCode != null)
+                        {
+                            <h4 style="font-weight:bold;">@($"{AccountName} ({AccountCode})")</h4>
+                        }
+                    </div>
+                    <div class="col-md-4" style="text-align:end">
+                        <label class="page-heading">@Localizer["Consolidated Monthwise"]</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="box-card-shadow">
+
+        <div class="row">
+            <div class="col-sm-12" style="padding-bottom:7px;">
+                <div class="row">
+                    <div class="col-md-12">
+
+                        <SfDatePicker @bind-Value="@FinancialDateService.StartDate" Format="dd/MM/yyyy" title=@Localizer["From Date"] Width="120px" Placeholder=@Localizer["From Date"]></SfDatePicker>
+                        <SfDatePicker @bind-Value="@FinancialDateService.EndDate" Format="dd/MM/yyyy" title="To Date" Width="120px" Placeholder=@Localizer["To Date"]></SfDatePicker>
+                        <SfTextBox @bind-Value="@ObAcc.AccountName" CssClass="textbox" @ref="@AccountRef" Placeholder=@Localizer["Please Select Account"] ShowClearButton="true" Readonly="true" Width="300px" Focus="@FocusHandler" Enabled="true"></SfTextBox>
+                        <SfCheckBox @bind-Checked="@ShowAll" Label=@Localizer["Show All"]></SfCheckBox>
+                        <SfCheckBox @bind-Checked="@Allocate" Label=@Localizer["Auto Allocate"]></SfCheckBox>
+                        <SfCheckBox @bind-Checked="@Ledger" Label=@Localizer["Ledger Only"]></SfCheckBox>
+                        <SfCheckBox @bind-Checked="@allBranches" Label=@Localizer["All Branches"]></SfCheckBox>
+                        <SfButton IconCss="Icon search" @onclick="@Search_Click" title=@Localizer["Search"] CssClass="widthset"></SfButton>
+                        <SfTextBox @ref="search" Input="OnInput" Placeholder=@Localizer["Global Search"] Width="250px" ShowClearButton="true" CssClass="e-btn2"></SfTextBox>
+                        <SfButton IconCss="Icon filter" CssClass="e-btn4" Content=" " @onclick="@Clear_Click" HtmlAttributes="@ClearFilter"></SfButton>
+
+                        @if (Isload)
+                        {
+                            <img src="gif/loading-waiting.gif" style="padding-left:2px; width: 20px; height: 20px;" />
+                        }
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="box-card-shadow">
+        <div class="col-md-12 col-sm-12">
+            <div class="row" style="padding-top:0px;">
+                <div class="table-responsive" style="position: relative; min-height:600px; min-width: 300px ">
+                    @if(!loading){
+                    @if (Stmt == null)
+                    {
+                        <p><em>No data...</em></p>
+                    }
+                    else
+                    {
+                        <SfGrid DataSource="Stmt"
+                                GridLines="@GridLine.Vertical"
+                                EnableHover="true"
+                                Query="LocalDataQueryMemberItem"
+                                Height="550"
+                                Width="100%"
+                                @ref="Grid"
+                                    AllowSorting="true"
+                                    AllowFiltering ="true"
+                                AllowResizing="true"
+                                AllowPdfExport="true"
+                                AllowExcelExport="true"
+                                RowHeight="25">
+                                <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel" ShowFilterBarStatus="true"></GridFilterSettings>
+
+                            <GridSortSettings>
+                                <GridSortColumns>
+                                    <GridSortColumn Field="SortField" Direction="Syncfusion.Blazor.Grids.SortDirection.Ascending"></GridSortColumn>
+                                    <GridSortColumn Field="ParentLevel" Direction="Syncfusion.Blazor.Grids.SortDirection.Ascending"></GridSortColumn>
+                                </GridSortColumns>
+                            </GridSortSettings>
+                            <GridColumns>
+                                <GridColumn Field="AccountCode" HeaderText=@Localizer["Account Code"] Width="150" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(Consolidated.AccountName)" HeaderText=@Localizer["Account Name"] Width="380" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                    <GridColumn Field="@nameof(Consolidated.M1)" Width="100" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Format="@DecimalFormat">
+                                    <HeaderTemplate>
+                                        <div>
+                                            @EDate.ToString("MMMM")
+                                        </div>
+                                    </HeaderTemplate>
+                                </GridColumn>
+                                    <GridColumn Field="@nameof(Consolidated.M2)" Width="100" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Format="@DecimalFormat">
+                                    <HeaderTemplate>
+                                        <div>
+                                            @EDate.AddMonths(-1).ToString("MMMM")
+                                        </div>
+                                    </HeaderTemplate>
+                                </GridColumn>
+                                    <GridColumn Field="@nameof(Consolidated.M3)" Width="100" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Format="@DecimalFormat">
+                                    <HeaderTemplate>
+                                        <div>
+                                            @EDate.AddMonths(-2).ToString("MMMM")
+                                        </div>
+                                    </HeaderTemplate>
+                                </GridColumn>
+                                    <GridColumn Field="@nameof(Consolidated.M4)" Width="100" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Format="@DecimalFormat">
+                                    <HeaderTemplate>
+                                        <div>
+                                            @EDate.AddMonths(-3).ToString("MMMM")
+                                        </div>
+                                    </HeaderTemplate>
+                                </GridColumn>
+                                    <GridColumn Field="@nameof(Consolidated.M5)" Width="100" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Format="@DecimalFormat">
+                                    <HeaderTemplate>
+                                        <div>
+                                            @EDate.AddMonths(-4).ToString("MMMM")
+                                        </div>
+                                    </HeaderTemplate>
+                                </GridColumn>
+                                    <GridColumn Field="@nameof(Consolidated.M6)" Width="100" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Format="@DecimalFormat">
+                                    <HeaderTemplate>
+                                        <div>
+                                            @EDate.AddMonths(-5).ToString("MMMM")
+                                        </div>
+                                    </HeaderTemplate>
+
+                                </GridColumn>
+                                    <GridColumn Field="@nameof(Consolidated.M7)" Width="100" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Format="@DecimalFormat">
+                                    <HeaderTemplate>
+                                        <div>
+                                            @EDate.AddMonths(-6).ToString("MMMM")
+                                        </div>
+                                    </HeaderTemplate>
+                                </GridColumn>
+                                    <GridColumn Field="@nameof(Consolidated.M8)" Width="100" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Format="@DecimalFormat">
+                                    <HeaderTemplate>
+                                        <div>
+                                            @EDate.AddMonths(-7).ToString("MMMM")
+                                        </div>
+                                    </HeaderTemplate>
+                                </GridColumn>
+                                    <GridColumn Field="@nameof(Consolidated.M9)" Width="100" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Format="@DecimalFormat">
+                                    <HeaderTemplate>
+                                        <div>
+                                            @EDate.AddMonths(-8).ToString("MMMM")
+                                        </div>
+                                    </HeaderTemplate>
+                                </GridColumn>
+                                    <GridColumn Field="@nameof(Consolidated.M10)" Width="100" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Format="@DecimalFormat">
+                                    <HeaderTemplate>
+                                        <div>
+                                            @EDate.AddMonths(-9).ToString("MMMM")
+                                        </div>
+                                    </HeaderTemplate>
+                                </GridColumn>
+                                    <GridColumn Field="@nameof(Consolidated.M11)" Width="100" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Format="@DecimalFormat">
+                                    <HeaderTemplate>
+                                        <div>
+                                            @EDate.AddMonths(-10).ToString("MMMM")
+                                        </div>
+                                    </HeaderTemplate>
+                                </GridColumn>
+                                    <GridColumn Field="@nameof(Consolidated.M12)" Width="100" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Format="@DecimalFormat">
+                                    <HeaderTemplate>
+                                        <div>
+                                            @EDate.AddMonths(-11).ToString("MMMM")
+                                        </div>
+                                    </HeaderTemplate>
+                                </GridColumn>
+                                    <GridColumn Field="@nameof(Consolidated.M13)" HeaderText=@($"> {Localizer["Year"]}") Width="100" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Format="@DecimalFormat"></GridColumn>
+                                    <GridColumn Field="@nameof(Consolidated.UnAllocated)" HeaderText=@Localizer["UnAllocated"] Width="100" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Format="@DecimalFormat"></GridColumn>
+                                    <GridColumn Field="@nameof(Consolidated.AccBalance)" HeaderText=@Localizer["Acc Balance"] Width="100" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Format="@DecimalFormat"></GridColumn>
+                            </GridColumns>
+                            <GridAggregates>
+                                <GridAggregate>
+                                    <GridAggregateColumns>
+                                            <GridAggregateColumn Field=@nameof(Consolidated.AccBalance) Type="AggregateType.Sum" Format="@DecimalFormat">
+                                            <FooterTemplate>
+                                                @{
+                                                    var aggregate = (context as AggregateTemplateContext);
+                                                    <div>
+                                                        <p>Balance: @aggregate.Sum</p>
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </GridAggregateColumn>
+                                    </GridAggregateColumns>
+                                </GridAggregate>
+                            </GridAggregates>
+                            </SfGrid>
+                        }
+                    }
+                    else
+                    {
+                        <div style="padding-top:700px;">
+                            <svg width="2500" height="2500" viewBox="126.444 2.281 589 589"><image href="gif/loading-waiting.gif" height="590px" width="770px" /></svg>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div>
+    <SfDialog Width="80%" Height="90%" IsModal="true" @bind-Visible="AccountSearch" ShowCloseIcon="true">
+        <DialogEvents />
+
+        <DialogTemplates>
+            <Header>
+                <div style="padding-top:10px">
+                    <SfTextBox @ref="searchAccount" Input="OnInputAccount" Placeholder="Search here" Width="100%" ShowClearButton="true" CssClass="e-btn2"></SfTextBox>
+                </div>
+            </Header>
+            <Content>
+                <div>
+                    <SfGrid DataSource="@_GlobalServ.AccountStatement"
+                            GridLines="GridLine.Both"
+                            Height="100%" Width="100%"
+                            AllowPaging="true"
+                            AllowFiltering="true"
+                            AllowResizing="true"
+                            AllowReordering="true"
+                            AllowSorting="true"
+                            @ref="AccountList"
+                            ShowColumnChooser="true"
+                            EnablePersistence="true"
+                            RowHeight="23">
+                        <GridEvents RowSelecting="AccountRowSelectingHandler" TValue="dtInvAccounts"></GridEvents>
+                        <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel" ShowFilterBarStatus="false"></GridFilterSettings>
+                        <GridPageSettings PageSize="50"></GridPageSettings>
+                        <GridSelectionSettings PersistSelection="true" Mode="Syncfusion.Blazor.Grids.SelectionMode.Both" Type="Syncfusion.Blazor.Grids.SelectionType.Single"></GridSelectionSettings>
+                        <GridTemplates>
+                        </GridTemplates>
+                        <GridColumns>
+                            <GridColumn Field=@nameof(dtInvAccounts.ID) IsPrimaryKey="true" Index="1" Visible="false" AllowFiltering="false"></GridColumn>
+                            <GridColumn Field=@nameof(dtInvAccounts.AccountCode) HeaderText=@Localizer["Account Code"] Index="2" Width="30%"></GridColumn>
+                            <GridColumn Field=@nameof(dtInvAccounts.AccountName) HeaderText=@Localizer["Account Name"] Index="3" Width="70%"></GridColumn>
+                            <GridColumn Field=@nameof(dtInvAccounts.AccCategory) HeaderText=@Localizer["Category"] Index="4" Width="30%"></GridColumn>
+
+                        </GridColumns>
+                    </SfGrid>
+                </div>
+            </Content>
+        </DialogTemplates>
+        <DialogButtons>
+            <DialogButton Content="Cancel" CssClass="e-btn" @onclick="@(() => AccountSearch = false)" />
+        </DialogButtons>
+        <DialogAnimationSettings Effect="@DialogEffect.None"></DialogAnimationSettings>
+    </SfDialog>
+</div>
+
+    @code
+{
+        [Parameter]
+        public string Query { get; set; }
+        int user, BranchID, AccountID, ID;
+        decimal? UnAllocated, Actual, minLevel, maxLevel;
+        string FD, TD, SP, Name, Remarks;
+        private bool ShowAll = false, Ledger = false, Allocate = false;
+        public bool Isload = false;
+        DateTime SDate = DateTime.Now, EDate = DateTime.Now;
+        private SfTreeGrid<Consolidated> TreeGrid;
+        SfGrid<Consolidated> Grid { get; set; }
+        public IList<Consolidated> dataSource { get; set; }
+        private IEnumerable<Consolidated> TreeGridData { get; set; }
+        private string? AccountName, AccountCode = string.Empty;
+        private Dictionary<string, object> ClearFilter = new Dictionary<string, object>()
+        {
+            { "title", "Clear Filter"}
+        };
+        dtInvAccounts ObAcc = new dtInvAccounts();
+        IList<Consolidated> Stmt = new List<Consolidated>();
+        SfComboBox<string, dtInvAccounts> ItemCombo { get; set; }
+        public Query LocalDataQueryMemberItem { get; set; } = new Query().Take(20);
+        public Query LocalDataQueryAccounts { get; set; } = new Query().Take(20);
+        bool allBranches = false;
+        SfTextBox AccountRef;
+        bool AccountSearch = false;
+        SfToast ToastObj;
+        private string ToastPosition = "Right";
+        private List<ToastModel> Toast = new List<ToastModel>
+        {
+            new ToastModel{Content="Choose an account, please.", CssClass="e-toast-info", Icon="e-error toast-icons" },
+
+        };
+        public string? DecimalFormat { get; set; }
+
+        protected override async Task OnInitializedAsync()
+        {
+            BranchID = await localStorage.GetItemAsync<int>("BranchID");
+            user = await localStorage.GetItemAsync<int>("UserID");
+            AccountID = await localStorage.GetItemAsync<int>("AccountID");
+        await FinancialDateService.InitializeDates();
+
+            if (user == 0)
+            {
+                string HomeUrl = "";
+                HomeUrl = await _UserRights.GetURl("Logout", AccountID);
+                uriHelper.NavigateTo(HomeUrl);
+            }
+            else
+            {
+                // var result = await FinServ.GetScalar("Select Entryfrom from company where id =" + BranchID);
+                // result = "{Scalar:" + result + "}";
+                // var ob = JObject.Parse(result.ToString());
+                // var dt = ob["Scalar"]["Entryfrom"].ToString();
+                // SDate = Convert.ToDateTime(dt);
+                // FinancialDateTime financialDate = await FinServ.GetFinancialDateTimeAsync(BranchID);
+                // SDate = financialDate.startDate;
+                // EDate = financialDate.endDate;
+                var str = await FinServ.GetScalar("select value from Settings where category='isSchool'");
+                SP = "CM";
+                if (str.ToString().Split(':')[1].Replace('"', ' ').Replace('}', ' ') == "True")
+                {
+                    SP = "CMSchool";
+                }
+                DecimalFormat = _GlobalServ.GlobalCurrencyFormat;
+                if (DecimalFormat == null || DecimalFormat == "")
+                {
+
+                    DecimalFormat = "0.00";
+                }
+                await base.OnInitializedAsync();
+            }
+        }
+        public (decimal?, decimal?) allocate(decimal? Actual, decimal? UnAllocated)
+        {
+            if (Actual > UnAllocated)
+            {
+                Actual = Actual - UnAllocated;
+                UnAllocated = null;
+            }
+            else
+            {
+                UnAllocated -= Actual;
+                Actual = null;
+            }
+            return (Actual, UnAllocated);
+        }
+        public async Task Search_Click()
+        {
+            if (ObAcc.ID == 0)
+            {
+                await this.ToastObj.ShowAsync(Toast[0]);
+                return;
+            }
+            Isload = true;
+            SDate = FinancialDateService.StartDate;
+            EDate = FinancialDateService.EndDate;
+            FD = SDate.Month.ToString("00") + "-" + SDate.Day.ToString("00") + "-" + SDate.Year;
+            TD = EDate.Month.ToString("00") + "-" + EDate.Day.ToString("00") + "-" + EDate.Year;
+
+            dataSource = (await _IConsolidated.Show(allBranches == true ? 0 : BranchID, FD.ToString(), TD.ToString(), ObAcc.ID, 0, "", SP, "")).ToList();
+            if (ShowAll == false)
+                dataSource = dataSource.Where(x => x.AccBalance != 0).ToList();
+            if (Ledger == true)
+                dataSource = dataSource.Where(x => x.VoucherEntry == 1).ToList();
+            if (Allocate == true)
+            {
+                foreach (var c in dataSource)
+                {
+                    UnAllocated = Convert.ToDecimal(c.UnAllocated);
+                    if (UnAllocated != 0)
+                    {
+                        for (int i = 12; i >= 1; i--)
+                        {
+                            if (UnAllocated != 0)
+                            {
+                                if (nameof(c.M1) == "M" + i)
+                                {
+                                    var Values = allocate(c.M1, UnAllocated);
+                                    c.M1 = Values.Item1;
+                                    UnAllocated = Values.Item2;
+                                }
+                                else if (nameof(c.M2) == "M" + i)
+                                {
+                                    var Values = allocate(c.M2, UnAllocated);
+                                    c.M2 = Values.Item1;
+                                    UnAllocated = Values.Item2;
+                                }
+                                else if (nameof(c.M3) == "M" + i)
+                                {
+                                    var Values = allocate(c.M3, UnAllocated);
+                                    c.M3 = Values.Item1;
+                                    UnAllocated = Values.Item2;
+                                }
+                                else if (nameof(c.M4) == "M" + i)
+                                {
+                                    var Values = allocate(c.M4, UnAllocated);
+                                    c.M4 = Values.Item1;
+                                    UnAllocated = Values.Item2;
+                                }
+                                else if (nameof(c.M5) == "M" + i)
+                                {
+                                    var Values = allocate(c.M5, UnAllocated);
+                                    c.M5 = Values.Item1;
+                                    UnAllocated = Values.Item2;
+                                }
+                                else if (nameof(c.M6) == "M" + i)
+                                {
+                                    var Values = allocate(c.M6, UnAllocated);
+                                    c.M6 = Values.Item1;
+                                    UnAllocated = Values.Item2;
+                                }
+                                else if (nameof(c.M7) == "M" + i)
+                                {
+                                    var Values = allocate(c.M7, UnAllocated);
+                                    c.M7 = Values.Item1;
+                                    UnAllocated = Values.Item2;
+                                }
+                                else if (nameof(c.M8) == "M" + i)
+                                {
+                                    var Values = allocate(c.M8, UnAllocated);
+                                    c.M8 = Values.Item1;
+                                    UnAllocated = Values.Item2;
+                                }
+                                else if (nameof(c.M9) == "M" + i)
+                                {
+                                    var Values = allocate(c.M9, UnAllocated);
+                                    c.M9 = Values.Item1;
+                                    UnAllocated = Values.Item2;
+                                }
+                                else if (nameof(c.M10) == "M" + i)
+                                {
+                                    var Values = allocate(c.M10, UnAllocated);
+                                    c.M10 = Values.Item1;
+                                    UnAllocated = Values.Item2;
+                                }
+                                else if (nameof(c.M11) == "M" + i)
+                                {
+                                    var Values = allocate(c.M11, UnAllocated);
+                                    c.M11 = Values.Item1;
+                                    UnAllocated = Values.Item2;
+                                }
+                                else if (nameof(c.M12) == "M" + i)
+                                {
+                                    var Values = allocate(c.M12, UnAllocated);
+                                    c.M12 = Values.Item1;
+                                    UnAllocated = Values.Item2;
+                                }
+                            }
+                        }
+                    }
+                    c.UnAllocated = Convert.ToDouble(UnAllocated);
+                }
+            }
+            Stmt = dataSource.ToList();
+            Isload = false;
+            await InvokeAsync(StateHasChanged);
+        }
+        private void ValueChangeHandler(ChangeEventArgs<string, dtInvAccounts> args)
+        {
+            if (args.ItemData.GetType() != null)
+            {
+                ObAcc = args.ItemData;
+            }
+        }
+        public async Task onFilteringCustAccount(Syncfusion.Blazor.DropDowns.FilteringEventArgs args)
+        {
+            args.PreventDefaultAction = true;
+            var pre = new WhereFilter();
+            var predicate = new List<WhereFilter>();
+            predicate.Add(new WhereFilter() { Condition = "or", Field = "AccountCode", value = args.Text, Operator = "contains", IgnoreAccent = true, IgnoreCase = true });
+            predicate.Add(new WhereFilter() { Condition = "or", Field = "AccountName", value = args.Text, Operator = "contains", IgnoreAccent = true, IgnoreCase = true });
+            pre = WhereFilter.Or(predicate);
+            //  Customers = AllCustomers;
+            var query = new Query();
+            query = args.Text == "" ? new Query().Take(100) : new Query().Where(pre).Take(100);
+        await this.ItemCombo.FilterAsync(_GlobalServ.AccountStatement, query);
+        }
+
+        public async Task ExcelExport()
+        {
+            await this.Grid.ExportToExcelAsync();
+
+        }
+        public List<ExpandoObject> companyDetails = new List<ExpandoObject>();
+        public async Task ExportPdf()
+        {
+            try
+            {
+                Isload = true;
+                // var data = await TreeGrid.GetFilteredRecordsAsync();
+                // var dataList = new List<object>();
+
+                // if (data is IEnumerable<object> enumerableData)
+                // {
+                //     foreach (var item in enumerableData)
+                //     {
+                //         dataList.Add(item);
+                //     }
+                // }
+                // else
+                // {
+                //     dataList.Add(data);
+                // }
+                companyDetails = new List<ExpandoObject>();
+                companyDetails = await _ICompanyManager.GetCompanyDetails(BranchID);
+                DataSource dt = new DataSource
+                {
+                    Parameters = new List<JSReportParameter>
+                    {
+                        new JSReportParameter
+                        {
+                            Name = "DateFrom",
+                            Values = new List<string> { SDate.ToString() }
+                        },
+                        new JSReportParameter
+                        {
+                            Name = "DateUpto",
+                            Values = new List<string> { EDate.ToString() }
+                        },
+                        new JSReportParameter
+                        {
+                            Name = "AccountName",
+                            Values = new List<string> { ObAcc.AccountName.ToString() }
+                        }
+                    }
+                };
+                dt.DataSet1 = new List<ExpandoObject>();
+                dt.DataSet2 = new List<ExpandoObject>();
+            dt.ReportName = "ConsolidatedMonthwise";
+                dt.DataSet1 = JsonConvert.DeserializeObject<List<ExpandoObject>>(JsonConvert.SerializeObject(Stmt));
+                dt.DataSet2 = JsonConvert.DeserializeObject<List<ExpandoObject>>(JsonConvert.SerializeObject(companyDetails));
+                if (dt.ReportName != "")
+                {
+                    var Result = await _BoldReport.GetReport(dt);
+                    var filename = dt.ReportName + ".pdf";
+                await IJS.InvokeVoidAsync("jsSaveAsFile", filename, Convert.ToBase64String(Result.ToArray()));
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+            finally
+            {
+                Isload = false;
+            }
+
+        }
+        SfTextBox search;
+        public void OnInput(InputEventArgs args)
+        {
+            this.Grid.SearchAsync(args.Value);
+            this.StateHasChanged();
+        }
+        private async Task FocusHandler(FocusInEventArgs args)
+        {
+            AccountSearch = true;
+            await AccountRef.FocusOutAsync();
+            await InvokeAsync(StateHasChanged);
+        }
+        private bool loading = false;
+        public async Task AccountRowSelectingHandler(RowSelectingEventArgs<dtInvAccounts> args)
+        {
+            try
+            {
+                loading = true;
+                ObAcc.AccountName = args.Data.AccountName;
+                AccountName = args.Data.AccountName;
+                AccountCode = args.Data.AccountCode;
+                AccountSearch = false;
+                ObAcc = args.Data;
+                await Search_Click();
+                loading = false;
+                await InvokeAsync(StateHasChanged);
+
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+        }
+        SfTextBox searchAccount;
+        SfGrid<dtInvAccounts> AccountList { get; set; }
+        public void OnInputAccount(InputEventArgs args)
+        {
+            this.AccountList.SearchAsync(args.Value);
+            this.StateHasChanged();
+        }
+        public async Task Clear_Click()
+        {
+            await Grid!.SearchAsync("");
+            await Grid.ClearFilteringAsync();
+
+        }
+}

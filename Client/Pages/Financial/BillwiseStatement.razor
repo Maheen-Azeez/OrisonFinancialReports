@@ -1,0 +1,509 @@
+﻿@page "/Billwise"
+@using OrisonMIS.Client.Services
+@using OrisonMIS.Shared.BoldReport
+@using OrisonMIS.Shared.Entities.Financial;
+@using Microsoft.AspNetCore.Components;
+@using Syncfusion.Blazor.Notifications
+@using OrisonMIS.Shared.Entities.General
+@using OrisonMIS.Shared.Entities.Inventory;
+@using Syncfusion.Blazor.Buttons;
+@using Syncfusion.Blazor.Grids;
+@using Syncfusion.Blazor.Inputs;
+@using Syncfusion.Blazor.Calendars;
+@using Syncfusion.Blazor.Spinner;
+@using Syncfusion.Blazor.DropDowns;
+@using Syncfusion.Blazor.Popups;
+@using System.Data;
+@using Syncfusion.Blazor.Data;
+@using System.Globalization;
+@using Newtonsoft.Json;
+@using Newtonsoft.Json.Linq;
+@using System.Dynamic
+@inject NavigationManager uriHelper
+@inject HttpClient http
+@inject OrisonMIS.Client.Services.GlobalService globalService
+@inject OrisonMIS.Client.Services.FinServices FinServ
+@inject OrisonMIS.Client.Services.UserRightsService _UserRights
+@inject OrisonMIS.Client.Logics.Contract.Financial.IBillWiseStmt _IBillWiseStmt
+@inject OrisonMIS.Client.Logics.Contract.Inventory.IInvAccounts _IInvAccounts
+@inject OrisonMIS.Client.Logics.Contract.Financial.IStmt _IStmt
+@inject FinancialDateTimeService FinancialDateService
+@inject OrisonMIS.Client.Logics.Contract.Inventory.IInvAccountManager _InvAccountManager
+@inject OrisonMIS.Client.Logics.Contract.Financial.IItemMasterManager _ItemMasterManager
+@inject OrisonMIS.Client.Logics.Contract.Inventory.IInvItemsManager _InvItemsManager
+@inject Blazored.SessionStorage.ISessionStorageService localStorage
+@inject OrisonMIS.Client.Logics.Contract.BoldReport.IBoldReportManager _BoldReport
+@inject OrisonMIS.Client.Logics.Contract.General.ICompanyManager _ICompanyManager
+@inject IJSRuntime IJS
+@using Microsoft.Extensions.Localization
+@using OrisonMIS.Client.Resources
+@inject IStringLocalizer<SfResources> Localizer
+<head>
+    <link href="css/OrisonSyncfusionStyles.css" rel="stylesheet" />
+</head>
+<div class="col-lg-12 control-section toast-default-section">
+    <SfToast ID="toast_type" @ref="ToastObj">
+        <ToastPosition X="@ToastPosition"></ToastPosition>
+    </SfToast>
+</div>
+
+<div>
+    <div class="box-card-shadow">
+
+        <div class="row">
+            <div class="col-sm-12" style="padding-bottom:7px;">
+                <div class="row" style="padding-top: 5px;">
+                    <div class="col-md-4">
+                        <SfButton @onclick="ExcelExport" IconCss="Icon excel" CssClass="e-btn" Content=@Localizer["Excel"] IsPrimary="false" />
+                        <SfButton @onclick="ExportPdf" IconCss="Icon pdf" CssClass="e-btn" Content=@Localizer["pdf"] IsPrimary="false" />
+                        @if (downloading)
+                        {
+                            <img src="gif/loading-waiting.gif" style="padding-left:2px; width: 20px; height: 20px;" />
+                        }
+                    </div>
+                    <div class="col-md-4 text-center">
+                        @if (AccountName != null && AccountCode != null)
+                        {
+                            <h4 style="font-weight:bold;">@($"{AccountName} ({AccountCode})")</h4>
+                        }
+                    </div>
+                    <div class="col-md-4" style="text-align:end">
+                        <label class="page-heading">@Localizer["Billwise Statement"]</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="box-card-shadow">
+
+        <div class="row direction">
+            <div class="col-sm-12" style="padding-bottom:8px;">
+                <div class="row">
+                    <div class="col-md-12">
+                        <SfDatePicker @bind-Value="@FinancialDateService.StartDate" Format="dd/MM/yyyy" title=@Localizer["From Date"] Width="120px" Placeholder=@Localizer["From Date"]></SfDatePicker>
+                        <SfDatePicker @bind-Value="@FinancialDateService.EndDate" Format="dd/MM/yyyy" title=@Localizer["To Date"] Width="120px" Placeholder=@Localizer["To Date"]></SfDatePicker>
+                        <SfTextBox @bind-Value="@ObAcc.AccountName" CssClass="textbox" @ref="@AccountRef" Placeholder=@Localizer["Please Select Account"] ShowClearButton="true" Readonly="true" Width="350px" Focus="@FocusHandler" Enabled="true"></SfTextBox>               
+                        <SfButton IconCss="Icon search" @onclick="@Search_Click" title=@Localizer["Search"] CssClass="widthset"></SfButton>
+                        <SfTextBox @ref="search" Input="OnInput" Placeholder=@Localizer["Global Search"] Width="250px" ShowClearButton="true" CssClass="e-btn2"></SfTextBox>
+                        <SfButton IconCss="Icon filter" CssClass="e-btn4" Content=" " @onclick="@Clear_Click" HtmlAttributes="@ClearFilter"></SfButton>
+
+                        @if (Isload)
+                        {
+                            <img src="gif/loading-waiting.gif" style="padding-left:2px; width: 20px; height: 20px;" />
+                        }
+
+                       
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="box-card-shadow">
+        <div class="col-md-12 col-sm-12">
+            <div class="row" style="padding-top:0px;">
+                <div class="table-responsive" style="position: relative; min-height:600px; min-width: 300px ">
+                    @if(!loading){
+                    @if (Stmt == null)
+                    {
+                        <p><em>No data...</em></p>
+                    }
+                    else
+                    {
+                        <SfGrid DataSource="@Stmt"
+                                GridLines="GridLine.Both"
+                                AllowExcelExport="true"
+                                AllowPdfExport="true"
+                                    AllowSorting="true"
+                                    AllowFiltering= "true"
+                                AllowResizing= "true"
+                                @ref="Grid"
+                                AllowPaging ="true"
+                                Height="@GridHeight"
+                                Width="100%"
+                                RowHeight="25">
+                                <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel" ShowFilterBarStatus="true"></GridFilterSettings>
+                                <GridPageSettings PageSize="200"></GridPageSettings>
+                            <GridColumns>
+                                <GridColumn Field=@nameof(billstmtObj.VID) Width="30px" Visible="false" Index="0"></GridColumn>
+                                <GridColumn Field="@nameof(billstmtObj.VNo)" HeaderText=@Localizer["VNo"] Width="80px" Index="1"></GridColumn>
+                                <GridColumn Field="@nameof(billstmtObj.EffectiveDate)" HeaderText=@Localizer["Date"] Width="80px" Format="dd/MM/yyyy" Index="2"></GridColumn>
+                                <GridColumn Field="@nameof(billstmtObj.Description)" HeaderText=@Localizer["Description"] Width="250px" Index="3"></GridColumn>
+                                <GridColumn Field="@nameof(billstmtObj.RefNo)" HeaderText=@Localizer["RefNo"] Width="80px" Visible="false" Index="4"></GridColumn>
+                                <GridColumn Field="@nameof(billstmtObj.Days)" HeaderText=@Localizer["Days"] TextAlign="TextAlign.Right" Visible="false" HeaderTextAlign="TextAlign.Left" Width="20px" Index="5" Format="N2"></GridColumn>
+                                <GridColumn Field="@nameof(billstmtObj.Amount)" HeaderText=@Localizer["Amount"] TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Width="80px" Index="6" Format="N2"></GridColumn>
+                                <GridColumn Field="@nameof(billstmtObj.Paid)" HeaderText=@Localizer["Paid"] TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Width="80px" Index="7" Format="N2"></GridColumn>
+                                <GridColumn Field="@nameof(billstmtObj.Balance)" HeaderText=@Localizer["Balance"] TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Width="80px" Index="8" Format="N2"></GridColumn>
+                                <GridColumn Field="@nameof(billstmtObj.RBalance)" HeaderText=@Localizer["RBalance"] TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Width="80px" Index="9" Format="N2"></GridColumn>
+
+                            </GridColumns>
+                            <GridAggregates>
+                                <GridAggregate>
+                                    <GridAggregateColumns>
+                                        <GridAggregateColumn Field=@nameof(billstmtObj.Amount) Type="AggregateType.Sum" Format="n2">
+                                            <FooterTemplate>
+                                                @{
+                                                    var aggregate = (context as AggregateTemplateContext);
+                                                    <div>
+                                                        <p>@aggregate.Sum</p>
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </GridAggregateColumn>
+                                        <GridAggregateColumn Field=@nameof(billstmtObj.Paid) Type="AggregateType.Sum" Format="n2">
+                                            <FooterTemplate>
+                                                @{
+                                                    var aggregate = (context as AggregateTemplateContext);
+                                                    <div>
+                                                        <p>@aggregate.Sum</p>
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </GridAggregateColumn>
+                                        <GridAggregateColumn Field=@nameof(billstmtObj.Balance) Type="AggregateType.Sum" Format="n2">
+                                            <FooterTemplate>
+                                                @{
+                                                    var aggregate = (context as AggregateTemplateContext);
+                                                    <div>
+                                                        <p>@aggregate.Sum</p>
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </GridAggregateColumn>
+                                    </GridAggregateColumns>
+                                </GridAggregate>
+                            </GridAggregates>
+                            </SfGrid>
+                        }
+                    }
+                    else
+                    {
+                        <div style="padding-top:700px;">
+                            <svg width="2500" height="2500" viewBox="126.444 2.281 589 589"><image href="gif/loading-waiting.gif" height="590px" width="770px" /></svg>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div>
+    <SfDialog Width="80%" Height="90%" IsModal="true" @bind-Visible="AccountSearch" ShowCloseIcon="true">
+        <DialogEvents />
+
+        <DialogTemplates>
+            <Header>
+                <div style="padding-top:10px">
+                    <SfTextBox @ref="searchAccount" Input="OnInputAccount" Placeholder=@Localizer["Search here"] Width="100%" ShowClearButton="true" CssClass="e-btn2"></SfTextBox>
+                </div>
+            </Header>
+            <Content>
+                <div>
+                    <SfGrid DataSource="@globalService.AccountStatement"
+                            GridLines="GridLine.Both"
+                            Height="100%" Width="100%"
+                            AllowPaging="true"
+                            AllowFiltering="true"
+                            AllowResizing="true"
+                            AllowReordering="true"
+                            AllowSorting="true"
+                            ShowColumnChooser="true"
+                            @ref="AccountList"
+                            EnablePersistence="true"
+                            RowHeight="23">
+                        <GridEvents RowSelecting="AccountRowSelectingHandler" TValue="dtInvAccounts"></GridEvents>
+                        <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel" ShowFilterBarStatus="false"></GridFilterSettings>
+                        <GridPageSettings PageSize="50"></GridPageSettings>
+                        <GridSelectionSettings PersistSelection="true" Mode="Syncfusion.Blazor.Grids.SelectionMode.Both" Type="Syncfusion.Blazor.Grids.SelectionType.Single"></GridSelectionSettings>
+                        <GridTemplates>
+                        </GridTemplates>
+                        <GridColumns>
+                            <GridColumn Field=@nameof(dtInvAccounts.ID) IsPrimaryKey="true" Index="1" Visible="false" AllowFiltering="false"></GridColumn>
+                            <GridColumn Field=@nameof(dtInvAccounts.AccountCode) HeaderText=@Localizer["Account Code"] Index="2" Width="30%"></GridColumn>
+                            <GridColumn Field=@nameof(dtInvAccounts.AccountName) HeaderText=@Localizer["Account Name"] Index="3" Width="70%"></GridColumn>
+                            <GridColumn Field=@nameof(dtInvAccounts.AccCategory) HeaderText=@Localizer["Category"] Index="4" Width="30%"></GridColumn>
+
+                        </GridColumns>
+                    </SfGrid>
+                </div>
+            </Content>
+        </DialogTemplates>
+        <DialogButtons>
+            <DialogButton Content="Cancel" CssClass="e-btn" @onclick="@(() => AccountSearch = false)" />
+        </DialogButtons>
+        <DialogAnimationSettings Effect="@DialogEffect.None"></DialogAnimationSettings>
+    </SfDialog>
+</div>
+
+    @code
+{
+    [Parameter]
+    public string Query { get; set; }
+    DateTime SDate = DateTime.Now, EDate = DateTime.Now;
+    int ID, user, BranchID, AccountID;
+    string FD, TD, Remarks, Name;
+    private bool ShowAll = false, Allocate = false, Isload = false;
+    SfGrid<BillStmt> Grid { get; set; }
+    public IList<BillwiseStmt> dataSource { get; set; }
+    //private IEnumerable<BillwiseStmt> TreeGridData { get; set; }
+    public IList<dtInvAccounts> AccList = new List<dtInvAccounts>();
+    dtInvAccounts ObAcc = new dtInvAccounts();
+    private List<BillStmt> Stmt;
+    private string? AccountName, AccountCode = string.Empty;
+    private bool downloading = false;
+    private Dictionary<string, object> ClearFilter = new Dictionary<string, object>()
+    {
+        { "title", "Clear Filter"}
+    };
+    BillStmt billstmtObj = new BillStmt();
+    SfComboBox<string, dtInvAccounts> ItemCombo { get; set; }
+    public Query LocalDataQueryMemberItem { get; set; } = new Query().Take(10);
+    double NewRTotal;
+    SfTextBox AccountRef;
+    bool AccountSearch = false;
+    private string GridHeight = "500px";
+    SfToast ToastObj;
+    private string ToastPosition = "Right";
+    private List<ToastModel> Toast = new List<ToastModel>
+    {
+        new ToastModel{Content="Choose an account, please.", CssClass="e-toast-info", Icon="e-error toast-icons" },
+
+    };
+    public string? DecimalFormat { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        BranchID = await localStorage.GetItemAsync<int>("BranchID");
+        user = await localStorage.GetItemAsync<int>("UserID"); 
+        AccountID = await localStorage.GetItemAsync<int>("AccountID");
+        await FinancialDateService.InitializeDates();
+
+        // FinancialDateService.OnChange += StateHasChanged;
+
+        if (user == 0)
+        {
+            string HomeUrl = "";
+            HomeUrl = await _UserRights.GetURl("Logout", AccountID);
+            uriHelper.NavigateTo(HomeUrl);
+        }
+        else
+        {
+            // var result = await FinServ.GetScalar("Select Entryfrom from company where id =" + BranchID);
+            // result = "{Scalar:" + result + "}";
+            // var ob = JObject.Parse(result.ToString());
+            // var dt = ob["Scalar"]["Entryfrom"].ToString();
+            // SDate = Convert.ToDateTime(dt);
+            // FinancialDateTime financialDate = await FinServ.GetFinancialDateTimeAsync(BranchID);
+            // SDate = financialDate.startDate;
+            // EDate = financialDate.endDate;
+            var dimension = await IJS.InvokeAsync<WindowDimension>("getWindowDimensions");
+            GridHeight = (dimension.Height - 180).ToString() + "px";
+            DecimalFormat = globalService.GlobalCurrencyFormat;
+            if (DecimalFormat == null || DecimalFormat == "")
+            {
+
+                DecimalFormat = "0.00";
+            }
+            await base.OnInitializedAsync();
+        }
+        await InvokeAsync(StateHasChanged);
+
+    }
+
+    private void ValueChangeHandler(ChangeEventArgs<string, dtInvAccounts> args)
+    {
+        if (args.ItemData.GetType() != null)
+        {
+            ObAcc = args.ItemData;
+        }
+    }
+    public async Task Search_Click()
+    {
+        SDate = FinancialDateService.StartDate;
+        EDate = FinancialDateService.EndDate;
+        if (ObAcc.ID == 0)
+        {
+            await this.ToastObj.ShowAsync(Toast[0]);
+            return;
+        }
+        Isload = true;
+        FD = SDate.Month.ToString("00") + "-" + SDate.Day.ToString("00") + "-" + SDate.Year;
+        TD = EDate.Month.ToString("00") + "-" + EDate.Day.ToString("00") + "-" + EDate.Year;
+        dataSource = (await _IBillWiseStmt.Show(BranchID, FD.ToString(), TD.ToString(), ObAcc.ID)).ToList();
+        if (ShowAll == true)
+
+            dataSource = dataSource.ToList();
+        else
+            dataSource = dataSource.Where(x => x.Paid != x.Amount).ToList();
+
+
+        Stmt = dataSource.Select(index => new BillStmt
+            {
+                VID = index.VID,
+                VEID = index.VEID,
+                EffectiveDate = index.EffectiveDate,
+                VNo = index.VNo,
+                RefNo = index.RefNo,
+                Description = index.Description,
+                Days = index.Days,
+                Months = index.Months,
+                Amount = index.Amount,
+                Paid = index.Paid,
+                AccountID = index.AccountID,
+            }).ToList();
+        Stmt.Sort((p, q) => p.EffectiveDate.CompareTo(q.EffectiveDate));
+        NewRTotal = 0;
+        foreach (var dr in Stmt)
+        {
+            dr.RBalance = 0;
+            dr.Balance = Math.Round((Convert.ToDecimal(dr.Amount) - Convert.ToDecimal(dr.Paid)), 2);
+            NewRTotal = Math.Round((NewRTotal + Convert.ToDouble(dr.Balance)), 2);
+            dr.RBalance = NewRTotal;
+        }
+
+        Isload = false;
+        await InvokeAsync(StateHasChanged);
+    }
+    public async Task onFilteringCustAccount(Syncfusion.Blazor.DropDowns.FilteringEventArgs args)
+    {
+        args.PreventDefaultAction = true;
+        var pre = new WhereFilter();
+        var predicate = new List<WhereFilter>();
+        predicate.Add(new WhereFilter() { Condition = "or", Field = "AccountCode", value = args.Text, Operator = "contains", IgnoreAccent = true, IgnoreCase = true });
+        predicate.Add(new WhereFilter() { Condition = "or", Field = "AccountName", value = args.Text, Operator = "contains", IgnoreAccent = true, IgnoreCase = true });
+        pre = WhereFilter.Or(predicate);
+        var query = new Query();
+        query = args.Text == "" ? new Query().Take(100) : new Query().Where(pre).Take(100);
+        await this.ItemCombo.FilterAsync(AccList, query);
+    }
+
+
+    public async Task ExcelExport()
+    {
+        downloading = true;
+        await this.Grid.ExportToExcelAsync();
+        downloading = false;
+    }
+    public List<ExpandoObject> companyDetails = new List<ExpandoObject>();
+
+    public async Task ExportPdf()
+    {
+        try
+        {
+            downloading = true;
+            var data = await Grid.GetFilteredRecordsAsync();
+            var dataList = new List<object>();
+
+            if (data is IEnumerable<object> enumerableData)
+            {
+                foreach (var item in enumerableData)
+                {
+                    dataList.Add(item);
+                }
+            }
+            else
+            {
+                dataList.Add(data);
+            }
+            companyDetails = new List<ExpandoObject>();
+            companyDetails = await _ICompanyManager.GetCompanyDetails(BranchID);
+            DataSource dt = new DataSource
+            {
+                Parameters = new List<JSReportParameter>
+                {
+                    new JSReportParameter
+                    {
+                        Name = "DateFrom",
+                        Values = new List<string> { SDate.ToString() }
+                    },
+                    new JSReportParameter
+                    {
+                        Name = "DateUpto",
+                        Values = new List<string> { EDate.ToString() }
+                    },
+                    new JSReportParameter
+                    {
+                        Name = "AccountName",
+                        Values = new List<string> { ObAcc.AccountName.ToString() }
+                    }
+                }
+            };
+            dt.DataSet1 = new List<ExpandoObject>();
+            dt.DataSet2 = new List<ExpandoObject>();
+            dt.ReportName = "BillWise Statement";
+            dt.DataSet1 = JsonConvert.DeserializeObject<List<ExpandoObject>>(JsonConvert.SerializeObject(dataList));
+            dt.DataSet2 = JsonConvert.DeserializeObject<List<ExpandoObject>>(JsonConvert.SerializeObject(companyDetails));
+            if (dt.ReportName != "")
+            {
+                var Result = await _BoldReport.GetReport(dt);
+                var filename = dt.ReportName + ".pdf";
+                await IJS.InvokeVoidAsync("jsSaveAsFile", filename, Convert.ToBase64String(Result.ToArray()));
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+        finally
+        {
+            downloading = false;
+        }
+    }
+        SfTextBox search;
+        public void OnInput(InputEventArgs args)
+        {
+            this.Grid.SearchAsync(args.Value);
+            this.StateHasChanged();
+        }
+        private async Task FocusHandler(FocusInEventArgs args)
+        {
+            AccountSearch = true;
+            await AccountRef.FocusOutAsync();
+            await InvokeAsync(StateHasChanged);
+        }
+        private bool loading = false;
+        public async Task AccountRowSelectingHandler(RowSelectingEventArgs<dtInvAccounts> args)
+        {
+            try
+            {
+                loading = true;
+                ObAcc.AccountName = args.Data.AccountName;
+                AccountName = args.Data.AccountName;
+                AccountCode = args.Data.AccountCode;
+                AccountSearch = false;
+                ObAcc = args.Data;
+                await Search_Click();
+                loading = false;
+                await InvokeAsync(StateHasChanged);
+
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+        }
+    SfTextBox searchAccount;
+    SfGrid<dtInvAccounts> AccountList { get; set; }
+    public void OnInputAccount(InputEventArgs args)
+    {
+        this.AccountList.SearchAsync(args.Value);
+        this.StateHasChanged();
+    }
+    private void showAll(Microsoft.AspNetCore.Components.ChangeEventArgs args)
+    {
+        if (dataSource != null)
+        {
+            if (ShowAll)
+                Stmt = ((List<BillStmt>)dataSource).Cast<BillStmt>().ToList();
+            else
+                Stmt = ((List<BillStmt>)dataSource).Cast<BillStmt>().Where(x => x.Paid != x.Amount).ToList();
+        }
+    }
+    public async Task Clear_Click()
+    {
+        await Grid!.SearchAsync("");
+        await Grid.ClearFilteringAsync();
+
+    }
+}

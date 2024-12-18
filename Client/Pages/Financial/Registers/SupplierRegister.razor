@@ -1,0 +1,342 @@
+﻿@page "/SupplierRegister"
+
+@using OrisonMIS.Shared.Entities.Financial;
+@using OrisonMIS.Shared.Entities.General;
+
+@using Microsoft.AspNetCore.Components;
+ 
+@using OrisonMIS.Shared.Entities.Inventory;
+@using Syncfusion.Blazor.Grids;
+@using Syncfusion.Blazor.Buttons;
+
+@inject IJSRuntime IJS
+@inject Blazored.SessionStorage.ISessionStorageService localStorage
+@inject HttpClient Http
+@inject NavigationManager uriHelper
+@inject OrisonMIS.Client.Logics.Contract.Inventory.IInvAccountManager _InvAccountManager
+
+<head>
+    <link href="css/OrisonSyncfusionStyles.css" rel="stylesheet" />
+    <link href="css/Loading.css" rel="stylesheet" />
+
+    @*<style>
+            .fontBold {
+                font-weight: bold;
+                text-align: right;
+            }
+
+            .container-fluid {
+                width: 100%;
+                margin-right: auto;
+                margin-left: auto;
+            }
+
+            .View {
+                color: dodgerblue;
+                background-color: white;
+            }
+        </style>*@
+    @*<style>
+            .form-control-sm {
+                height: 25px;
+                padding: 0.20313rem 0.5rem;
+                font-size: 0.8125rem;
+                line-height: 1.5;
+                border-radius: 0.15rem;
+            }
+
+            .form-control1 {
+                height: 35px;
+                width: 150px
+            }
+
+            .Custom {
+                height: 34px;
+            }
+
+            .MyIndexClass::after {
+                content: attr(data-index);
+            }
+
+            .my-grid .dxbs-filter-row th:nth-child(1) div {
+                display: none;
+            }
+
+            .e-grid .e-altrow {
+                background-color: #E8EEFA;
+            }
+
+            .e-grid .e-headercell {
+                background-image: linear-gradient( 0deg, #5f368d85, #B7D8DC);
+            }
+
+            .e-columnheader {
+                height: 30px;
+            }
+
+            .e-grid .e-filterbarcell, .e-grid .e-filterbarcelldisabled {
+                background-image: linear-gradient( 0deg, #5f368d85, #B7D8DC);
+            }
+
+            .e-grid .e-rowcell {
+                font-size: 12px;
+            }
+
+            .e-grid .e-headercelldiv {
+                border: 0 none;
+                display: block;
+                font-size: 12px;
+                font-weight: Bold;
+                height: 21px;
+                line-height: 21px;
+                margin: -5px;
+                overflow: hidden;
+                padding: 0 0.4em;
+                text-align: left;
+                text-transform: none;
+                -webkit-user-select: none;
+                -ms-user-select: none;
+                user-select: none;
+                width: 200px;
+            }
+
+
+
+            .e-btn:disabled, .e-css.e-btn:disabled {
+                background-color: rgb(214 228 240 / 65%);
+                box-shadow: none;
+                color: #5f368d;
+                opacity: 0.65;
+                border-color: #5f368d;
+            }
+
+
+            .e-btn.e-primary:disabled, .e-css.e-btn.e-primary:disabled {
+                background-color: rgb(222 222 222 / 65%);
+                border-color: #000;
+                box-shadow: none;
+                color: #787878;
+            }
+
+            .e-btn:disabled, .e-css.e-btn:disabled {
+                background-color: rgb(249 251 252 / 65%);
+                border-color: #212529;
+                box-shadow: none;
+                color: #000;
+            }
+
+            .e-btn, .e-css.e-btn {
+                -webkit-tap-highlight-color: transparent;
+                background-color: #ffffff;
+                border-color: #5f368d;
+                box-shadow: none;
+                color: #231e1e;
+                transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1);
+                cursor: pointer;
+            }
+
+            .e-btn1 {
+                background-color: white;
+                border-color: #d7d8d9;
+                color: black;
+                width: 115px;
+                cursor: pointer;
+            }
+
+            .e-btn2 {
+                background-color: white;
+                border-color: #d7d8d9;
+                color: black;
+                width: 142px;
+                cursor: pointer;
+            }
+            /*    .e-btn.e-primary, .e-css.e-btn {
+                background-color: white;
+                border-color: black;
+                color: black;
+                width: 80px;
+            }*/
+
+            .e-disabled {
+                background: #fff;
+                color: #6c757d;
+            }
+
+            .e-grid {
+                border-color: #dee2e6;
+                width: 100%;
+            }
+
+            .e-pager div.e-parentmsgbar {
+                float: left;
+                padding-bottom: 11px;
+                padding-right: 4px;
+                padding-top: 0px;
+            }
+
+            .e-input-group:not(.e-success):not(.e-warning):not(.e-error), .e-input-group.e-control-wrapper:not(.e-success):not(.e-warning):not(.e-error) {
+                border-color: #d7d8d9;
+                width: 100%;
+                height: 34px;
+            }
+
+            .e-btn:hover, .e-css.e-btn:hover {
+                background-color: rgb(214 228 240 / 65%);
+                border-color: #5f368d;
+                box-shadow: none;
+                color: #787878;
+            }
+
+            .e-btn:focus, .e-css.e-btn:focus {
+                background-color: rgb(214 228 240 / 65%);
+                border-color: #5f368d;
+                box-shadow: none;
+                color: #787878;
+            }
+
+            .e-btn .e-btn-icon, .e-css.e-btn .e-btn-icon {
+                display: inline-block;
+                font-size: 14px;
+                margin-top: -2px;
+                vertical-align: middle;
+                width: 2em;
+            }
+        </style>*@
+
+    @*<style>
+            .e-btn.e-icon-btn, .e-css.e-btn.e-icon-btn {
+                padding: 4px 4px;
+                width: 40px;
+            }
+
+            .e-input-group.e-corner {
+                border-radius: 5px;
+            }
+
+            .e-upload-picture::before {
+                content: '\e724';
+                font-family: e-icons;
+            }
+
+            .e-input-group .e-input-group-icon:first-child, .e-input-group.e-control-wrapper .e-input-group-icon:first-child {
+                border-bottom-right-radius: 3px;
+                border-top-right-radius: 3px;
+            }
+            /*To increase the font-size and change font-family*/
+            .e-input-group.e-control-wrapper.e-corner {
+                font-family: "Helvetica Neue","Helvetica","Arial",sans-serif,"-apple-system","BlinkMacSystemFont";
+                font-size: 14px;
+                font-weight: 400;
+            }
+
+            .e-grid .e-gridheader {
+                border-bottom-color: #dee2e6;
+                border-top-color: #dee2e6;
+                color: #212529;
+                background-image: linear-gradient( 0deg, #5f368d85, #B7D8DC);
+            }
+
+                .e-grid .e-rowcell:not(.e-editedbatchcell):not(.e-updatedtd), .e-grid .e-detailrowcollapse:not(.e-editedbatchcell):not(.e-updatedtd), .e-grid .e-detailrowexpand:not(.e-editedbatchcell):not(.e-updatedtd), .e-grid .e-gridcontent .e-rowdragdrop:not(.e-editedbatchcell):not(.e-updatedtd), .e-grid .e-gridheader .e-rowdragdrop:not(.e-editedbatchcell):not(.e-updatedtd), .e-grid .e-emptyrow:not(.e-editedbatchcell):not(.e-updatedtd) {
+                    color: #212529;
+                    font-weight: 500;
+                }
+
+            .btnwidth {
+                width: 35px;
+            }
+        </style>*@
+</head>
+
+<div>
+    <div class="box-card-shadow">
+        <div class="row">
+            <div class="col-sm-12" style="padding-bottom:7px;">
+                <div class="row" style="padding-top: 5px;">
+                    <div class="col-md-8">
+                        <SfButton IconCss="Icon add" @onclick="@btnNew_Click" Content="Add"></SfButton>
+                    </div>
+                    <div class="col-md-4" style="text-align:end">
+                        <label style="color:#014164;font-size:large;font-weight:bold;">
+                            SUPPLIER MASTER
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="box-card-shadow">
+        <div class="col-md-12 col-sm-12">
+            <div class="row" style="padding-top:0px;">
+                <div class="table-responsive" style="position: relative; min-height:600px; min-width: 300px ">
+                    @if (dataSource == null)
+                    {
+                    <p><em>No data...</em></p> 
+                    }
+                    else
+                    {
+                    <SfGrid DataSource="@dataSource" CssClass="my-grid" RowHeight="28" GridLines="GridLine.Both"
+                    AllowSorting="true" AllowFiltering="true"
+                    AllowPaging="true" @key="@nameof(dtInvAccounts.ID)">
+                    <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel"></GridFilterSettings>
+                    <GridEvents CommandClicked="OnCommandClicked" TValue="dtInvAccounts"> </GridEvents>
+                    <GridPageSettings PageSize="10"></GridPageSettings>
+                    <GridColumns>
+                        <GridColumn HeaderText="S.Code" Field="@nameof(dtInvAccounts.AccountCode)" HeaderTextAlign="TextAlign.Left" Width="10%"></GridColumn>
+                        <GridColumn HeaderText="Account Name" Field="@nameof(dtInvAccounts.AccountName)" HeaderTextAlign="TextAlign.Left" Width="20%"></GridColumn>
+                        <GridColumn HeaderText="Emirates" Field="@nameof(dtInvAccounts.Emirates)" HeaderTextAlign="TextAlign.Left" Width="8%"></GridColumn>
+                        <GridColumn HeaderText="Contact Person" Field="@nameof(dtInvAccounts.ContactPerson)" HeaderTextAlign="TextAlign.Left" Width="15%"></GridColumn>
+                        <GridColumn HeaderText="Mobile" Field="@nameof(dtInvAccounts.Mobile)" HeaderTextAlign="TextAlign.Left" Width="10%"></GridColumn>
+                        @*<GridColumn HeaderText="Telphone" Field="@nameof(dtInvAccounts.Phone1)" Width="5%"></GridColumn>
+                        <GridColumn HeaderText="Fax" Field="@nameof(dtInvAccounts.Fax)" Width="5%"></GridColumn>*@
+                        <GridColumn HeaderText="Email" Field="@nameof(dtInvAccounts.Email)" HeaderTextAlign="TextAlign.Left" Width="10%"></GridColumn>
+                        @*<GridColumn HeaderText="Website" Field="@nameof(dtInvAccounts.Website)" Width="5%"></GridColumn>*@
+                        <GridColumn HeaderText="Active" Field="@nameof(dtInvAccounts.Inactive)" HeaderTextAlign="TextAlign.Left" Width="6%"></GridColumn>
+                        <GridColumn HeaderText="Remarks" Field="@nameof(dtInvAccounts.Remarks)" HeaderTextAlign="TextAlign.Left" Width="15%"></GridColumn>
+                        <GridColumn Width="5%" HeaderTextAlign="TextAlign.Left" TextAlign="TextAlign.Center" HeaderText="View">
+                            <GridCommandColumns>
+                                <GridCommandColumn ButtonOption="@(new CommandButtonOptions() { CssClass="oi oi-eye grid-view btnwidth" })" Title="View">
+                                </GridCommandColumn>
+                            </GridCommandColumns>
+                        </GridColumn>
+                    </GridColumns>
+                    </SfGrid>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code
+{ public List<dtInvAccounts> dataSource;
+    public int ID;
+    public string Name;
+    public string Remarks;
+    int user, BranchID, AccountID;
+
+    protected override async Task OnInitializedAsync()
+    {
+        BranchID = await localStorage.GetItemAsync<int>("BranchID");
+        user = await localStorage.GetItemAsync<int>("UserID");
+        AccountID = await localStorage.GetItemAsync<int>("AccountID");
+        if (user == 0)
+        {
+            uriHelper.NavigateTo("Home");
+        }
+        else
+        {
+            await base.OnInitializedAsync();
+            dataSource = await _InvAccountManager.ListAllByCategory("Supplier");
+        }
+
+    }
+    public async void OnCommandClicked(CommandClickEventArgs<dtInvAccounts> args)
+    {
+        uriHelper.NavigateTo(uriHelper.BaseUri + "SupplierEntry/" + args.RowData.ID);
+    }
+
+    public void btnNew_Click()
+    {
+        uriHelper.NavigateTo(uriHelper.BaseUri + "SupplierEntry");
+    } }

@@ -1,0 +1,626 @@
+﻿@page "/FinancialRegister"
+@page "/FinancialRegister/{VId}"
+@using OrisonMIS.Client.Services
+@using OrisonMIS.Shared.BoldReport
+@using OrisonMIS.Shared.Entities.Financial;
+@using Microsoft.AspNetCore.Components;
+@using OrisonMIS.Shared.Entities.General
+@using Syncfusion.Blazor.Buttons;
+@using Syncfusion.Blazor.Navigations
+@using Syncfusion.Blazor.TreeGrid;
+@using Syncfusion.Blazor.Inputs
+@using Syncfusion.Blazor.Calendars;
+@using Syncfusion.Blazor.Grids;
+@using Syncfusion.Blazor.Spinner;
+@using Newtonsoft.Json;
+@using Newtonsoft.Json.Linq;
+@using Syncfusion.Blazor.Data
+@using Syncfusion.Blazor.DropDowns;
+@using System.Web
+@inject NavigationManager uriHelper
+@inject HttpClient http
+@inject IJSRuntime IJS
+@inject OrisonMIS.Client.Services.ExcelService excelService
+@inject Blazored.SessionStorage.ISessionStorageService localStorage
+@inject OrisonMIS.Client.Services.FinServices FinServ
+@inject OrisonMIS.Client.Services.UserRightsService _UserRights
+@inject OrisonMIS.Client.Logics.Contract.Financial.IFinancialManager _financial
+@inject FinancialDateTimeService FinancialDateService
+@inject OrisonMIS.Client.Logics.Contract.General.ICompanyManager _ICompanyManager
+
+@inject GlobalService _GlobalServ
+@using Microsoft.Extensions.Localization
+@using OrisonMIS.Client.Resources
+@using System.Dynamic
+@inject OrisonMIS.Client.Logics.Contract.BoldReport.IBoldReportManager _BoldReport
+@inject IJSRuntime JsRuntime
+
+@inject IStringLocalizer<SfResources> Localizer
+<head>
+    <link href="css/OrisonSyncfusionStyles.css" rel="stylesheet" />
+</head>
+
+<div>
+    <div class="box-card-shadow">
+        <div class="row">
+            <div class="col-sm-12" style="padding-bottom:7px;">
+                <div class="row" style="padding-top: 5px;">
+                    <div class="col-md-8">
+                        <SfButton @onclick="ExcelExport" IconCss="Icon excel" CssClass="e-btn" Content=@Localizer["Excel"] IsPrimary="false" />
+                        <SfButton @onclick="ExportPdf" IconCss="Icon pdf" CssClass="e-btn" Content=@Localizer["PDF"] IsPrimary="false" /><span>
+                            @if (downloading)
+                            {
+                                <img src="gif/loading-waiting.gif" style="padding-left:2px; width: 20px; height: 20px;" />
+                            }
+                        </span>
+                    </div>
+                    <div class="col-md-4" style="text-align:end">
+                        <label class="page-heading">@Localizer["Financial Register"]</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="box-card-shadow">
+        <div class="row">
+            <div class="col-sm-12" style="padding-bottom:8px;">
+                <div class="row">
+                    <div class="col-md-12">
+                        <SfComboBox  TValue="string" TItem="string" Placeholder=@Localizer["Select Type"] Width="250px" @bind-Value="@registerType" CssClass="e-multi-column" 
+                                    AllowFiltering="true" DataSource="@TypeList" PopupHeight="300px" Enabled="true">
+                        </SfComboBox>
+                        <SfDatePicker @bind-Value="@FinancialDateService.StartDate" Format="dd/MM/yyyy" title=@Localizer["From Date"] Width="140px" Placeholder=@Localizer["From Date"]>
+                        </SfDatePicker>
+                        <SfDatePicker @bind-Value="@FinancialDateService.EndDate" Format="dd/MM/yyyy" title=@Localizer["To Date"] Width="140px" Placeholder=@Localizer["To Date"]>
+                        </SfDatePicker>
+                        <SfButton IconCss="Icon search" @onclick="@Search_Click" title=@Localizer["Search"] CssClass="widthset"></SfButton>
+                        
+                        
+                        <SfTextBox Input="OnInput" @ref="search" @bind-Value="@golablSearchValue" Placeholder=@Localizer["Global Search"] Width="250px" ShowClearButton="true"
+                                   Created="@OnCreateSearch"></SfTextBox>
+
+
+
+@*                         <SfTextBox @ref="search" @bind-Value="@golablSearchValue" Placeholder="Global Search" Width="250px" ShowClearButton="true" CssClass="e-btn2"></SfTextBox><span><SfButton IconCss="Icon search" @onclick="@OnInput" title="Search" CssClass="widthset"></SfButton></span>
+ *@                        
+                        <SfButton @onclick="@Back_Click" Content=@Localizer["Back"]  CssClass="widthset"></SfButton>
+                        <SfButton IconCss="Icon filter" CssClass="e-btn4" Content=" " @onclick="@Clear_Click" HtmlAttributes="@ClearFilter"></SfButton>
+
+                        @if (Isload)
+                        {
+                            <img src="gif/loading-waiting.gif" style="padding-left:2px; width: 20px; height: 20px;" />
+                        }
+                       
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="box-card-shadow">
+        <div class="col-md-12 col-sm-12">
+            <div class="row" style="padding-top:0px;">
+                <div class="table-responsive" style="position: relative;min-height:600px; min-width: 300px ">
+                    
+                    @if (Stmt == null)
+                    {
+                        <p><em>No data...</em></p>
+                    }
+                    else
+                    {
+                        <SfGrid DataSource="dataSource"
+                                GridLines="@GridLine.Vertical"
+                                Height="@GridHeight"
+                                Width="100%"
+                                @ref="Grid"
+                                AllowSorting="true"
+                                AllowFiltering="true"
+                                AllowResizing="true"
+                                AllowPdfExport="true"
+                                AllowExcelExport="true"
+                                AllowPaging="@gridPaging"
+                                RowHeight="25"
+                                >
+                            <GridPageSettings PageSize="100"> </GridPageSettings>
+                            <GridAggregates>
+                                <GridAggregate>
+                                    <GridAggregateColumns>
+
+
+
+                                        <GridAggregateColumn Format="0.00" Field=@nameof(dtFinancialRegister.Credit) Type="AggregateType.Sum">
+                                            <FooterTemplate>
+                                                @{
+                                                    var aggregate = (context as AggregateTemplateContext);
+                                                    <div>
+                                                        @if(Count <= expectedCount){
+                                                        <div style="align-items:end;">@aggregate.Sum</div>
+                                                        }else{
+                                                            <div style="align-items:end;">@Convert.ToDecimal(SumCredit).ToString("0.00")</div>
+                                                        }
+
+                                                    </div>
+
+                                                }
+                                            </FooterTemplate>
+                                        </GridAggregateColumn>
+                                        <GridAggregateColumn Format="0.00" Field=@nameof(dtFinancialRegister.Debit) Type="AggregateType.Sum">
+                                            <FooterTemplate>
+                                                @{
+                                                    var aggregate = (context as AggregateTemplateContext);
+                                                    <div>
+                                                        @if (Count <= expectedCount)
+                                                        {
+                                                            <div style="align-items:end;">@aggregate.Sum</div>
+                                                        }
+                                                        else
+                                                        {
+                                                        <div style="align-items:end;">@Convert.ToDecimal(SumDebit).ToString("0.00")</div>
+                                                        }
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </GridAggregateColumn>
+                                        
+
+                                    </GridAggregateColumns>
+                                </GridAggregate>
+                            </GridAggregates>
+                            <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel"  ShowFilterBarStatus="true"></GridFilterSettings>
+                            <GridEvents DetailDataBound="OnDetaildSelected" TValue="dtFinancialRegister"></GridEvents>
+
+                            <GridTemplates Context="detailed_context">
+                                <DetailTemplate>
+                                    @{
+                                        <div class="box-card-shadow">
+                                            <div class="col-md-12 col-sm-12">
+                                                <div class="row" style="padding-top:0px;">
+                                                    <div class="table-responsive" style="position: relative;min-width: 300px ">
+                                                        <SfGrid RowHeight="22" ID="fin-detailed-grid" DataSource="@detailedGrid">
+                                                            <GridAggregates>
+                                                                <GridAggregate>
+                                                                    <GridAggregateColumns>
+                                                                        <GridAggregateColumn Format="@DecimalFormat" Field=@nameof(dtFinancialRegister.Credit) Type="AggregateType.Sum">
+                                                                            <FooterTemplate>
+                                                                                @{
+                                                                                    var aggregate = (detailed_context as AggregateTemplateContext);
+                                                                                    <div><p>@aggregate.Sum</p></div>
+                                                                                }
+                                                                            </FooterTemplate>
+                                                                        </GridAggregateColumn>
+                                                                        <GridAggregateColumn Format="@DecimalFormat" Field=@nameof(dtFinancialRegister.Debit) Type="AggregateType.Sum">
+                                                                            <FooterTemplate>
+                                                                                @{
+                                                                                    var aggregate = (detailed_context as AggregateTemplateContext);
+                                                                                   <div><p>@aggregate.Sum</p></div>
+                                                                                }
+                                                                            </FooterTemplate>
+                                                                        </GridAggregateColumn>
+                                                                        
+
+                                                                    </GridAggregateColumns>
+                                                                </GridAggregate>
+                                                            </GridAggregates>
+                                                            <GridColumns>
+                                                                <GridColumn Field="@nameof(dtFinancialRegister.VType)" HeaderText=@Localizer["VType"] Width="100" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                                                <GridColumn Field="@nameof(dtFinancialRegister.VDate)" HeaderText=@Localizer["VDate"] Width="100" Format="dd/MM/yyyy" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                                                <GridColumn Field="@nameof(dtFinancialRegister.VNO)" HeaderText=@Localizer["VNo"] Width="100" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                                                <GridColumn Field="@nameof(dtFinancialRegister.AccountCode)" HeaderText=@Localizer["Account Code"] Width="110" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                                                <GridColumn Field="@nameof(dtFinancialRegister.AccountName)" HeaderText=@Localizer["Account Name"] Width="300" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                                                <GridColumn Field="@nameof(dtFinancialRegister.Debit)" HeaderText=@Localizer["Debit"] Width="150" Format="@DecimalFormat" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                                                <GridColumn Field="@nameof(dtFinancialRegister.Credit)" HeaderText=@Localizer["Credit"] Width="150" Format="@DecimalFormat" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                                                <GridColumn Field="@nameof(dtFinancialRegister.Description)" HeaderText=@Localizer["Description"] Width="300" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                                                <GridColumn Field="@nameof(dtFinancialRegister.PAccountCode)" HeaderText=@Localizer["PAccountCode"] Width="150" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                                                <GridColumn Field="@nameof(dtFinancialRegister.PAccountName)" HeaderText=@Localizer["PAccountName"] Width="150" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                                                <GridColumn Field="@nameof(dtFinancialRegister.NameInArabic)" HeaderText=@Localizer["NameInArabic"] Width="250" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                                                <GridColumn Field="@nameof(dtFinancialRegister.Currency)" HeaderText=@Localizer["Currency"] Width="100" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                                                <GridColumn Field="@nameof(dtFinancialRegister.RefNo)" HeaderText=@Localizer["RefNo"] Width="70" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                                                <GridColumn Field="@nameof(dtFinancialRegister.Reference)" HeaderText=@Localizer["Reference"] Width="100" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                                                <GridColumn Field="@nameof(dtFinancialRegister.ChequeNo)" HeaderText=@Localizer["ChequeNo"] Width="100" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                                                <GridColumn Field="@nameof(dtFinancialRegister.ChequeDate)" HeaderText=@Localizer["ChequeDate"] Width="100" Format="dd/MM/yyyy" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                                                <GridColumn Field="@nameof(dtFinancialRegister.CreatedDate)" HeaderText=@Localizer["CreatedDate"] Width="100" Format="dd/MM/yyyy" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                                                <GridColumn Field="@nameof(dtFinancialRegister.CreatedUser)" HeaderText=@Localizer["CreatedUser"] Width="100" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                                                <GridColumn Field="@nameof(dtFinancialRegister.ModifiededDate)" HeaderText=@Localizer["ModifiededDate"] Width="120" Format="dd/MM/yyyy" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                                                <GridColumn Field="@nameof(dtFinancialRegister.ModifiedUser)" HeaderText=@Localizer["ModifiedUser"] Width="120" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                                                <GridColumn Field="@nameof(dtFinancialRegister.StaffName)" HeaderText=@Localizer["StaffName"] Width="100" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                                                <GridColumn Field="@nameof(dtFinancialRegister.Voucheragainst)" HeaderText=@Localizer["Voucheragainst"] Width="120" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                                                <GridColumn Field="@nameof(dtFinancialRegister.CommonNarration)" HeaderText=@Localizer["CommonNarration"] Width="120" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                                                <GridColumn Field="@nameof(dtFinancialRegister.Alloted)" HeaderText=@Localizer["Alloted"] Width="70" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                                            </GridColumns>
+                                                        </SfGrid>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                </DetailTemplate>
+                            </GridTemplates>
+                            <GridSelectionSettings Type="Syncfusion.Blazor.Grids.SelectionType.Single"></GridSelectionSettings>
+
+                            <GridColumns>
+                                <GridColumn Field="@nameof(dtFinancialRegister.VType)" HeaderText=@Localizer["VType"] Width="100" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(dtFinancialRegister.VDate)" HeaderText=@Localizer["VDate"] Width="100" Format="dd/MM/yyyy" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(dtFinancialRegister.VNO)" HeaderText=@Localizer["VNo"] Width="100" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(dtFinancialRegister.AccountCode)" HeaderText=@Localizer["Account Code"] Width="110" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(dtFinancialRegister.AccountName)" HeaderText=@Localizer["Account Name"] Width="300" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(dtFinancialRegister.Debit)" HeaderText=@Localizer["Debit"] Width="150" Format="@DecimalFormat" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(dtFinancialRegister.Credit)" HeaderText=@Localizer["Credit"] Width="150" Format="@DecimalFormat" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(dtFinancialRegister.Description)" HeaderText=@Localizer["Description"] Width="300" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(dtFinancialRegister.PAccountCode)" HeaderText=@Localizer["PAccountCode"] Width="150" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(dtFinancialRegister.PAccountName)" HeaderText=@Localizer["PAccountName"] Width="150" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(dtFinancialRegister.NameInArabic)" HeaderText=@Localizer["NameInArabic"] Width="250" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(dtFinancialRegister.Currency)" HeaderText=@Localizer["Currency"] Width="100" HeaderTextAlign="TextAlign.Left"></GridColumn>                               
+                                <GridColumn Field="@nameof(dtFinancialRegister.RefNo)" HeaderText=@Localizer["RefNo"] Width="70" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(dtFinancialRegister.Reference)" HeaderText=@Localizer["Reference"] Width="100" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(dtFinancialRegister.ChequeNo)" HeaderText=@Localizer["ChequeNo"] Width="100" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(dtFinancialRegister.ChequeDate)" HeaderText=@Localizer["Cheque Date"] Width="100" Format="dd/MM/yyyy" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(dtFinancialRegister.CreatedDate)" HeaderText=@Localizer["CreatedDate"] Width="100"  HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(dtFinancialRegister.CreatedUser)" HeaderText=@Localizer["CreatedUser"] Width="100" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(dtFinancialRegister.ModifiededDate)" HeaderText=@Localizer["ModifiededDate"] Width="120" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(dtFinancialRegister.ModifiedUser)" HeaderText=@Localizer["ModifiedUser"] Width="120" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(dtFinancialRegister.StaffName)" HeaderText=@Localizer["StaffName"] Width="100" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(dtFinancialRegister.Voucheragainst)" HeaderText=@Localizer["Voucheragainst"] Width="120" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(dtFinancialRegister.CommonNarration)" HeaderText=@Localizer["CommonNarration"] Width="120" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(dtFinancialRegister.Alloted)" HeaderText=@Localizer["Alloted"] Width="70" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(dtFinancialRegister.VID)" HeaderText=@Localizer["VID"] Width="70" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(dtFinancialRegister.VEID)" HeaderText=@Localizer["VEID"] Width="70" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                            </GridColumns>
+                            @if(Isload){
+                               <svg width="2500" height="2500" viewBox="126.444 2.281 589 589"><image href="gif/loading-waiting.gif" height="590px" width="770px" /></svg>
+                            }
+                        </SfGrid>
+                        @if (!gridPaging)
+                        {
+                            <SfPager @ref="Page" PageSize="@TakeValue" PageSizeChanged="PageSize" NumericItemsCount=4 TotalItemsCount="@Count" ShowAllInPageSizes="true" ItemClick="Click">
+                            </SfPager>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public string VId { get; set; }
+    int user, BranchID, AccountID, ID;
+    public string? Name, Remarks, FD, TD, FinYear;
+    public bool Isload, reportLoading = false;
+    public bool downloading = false;
+    public bool isDateChanged { get; set; } = true;
+    string GridHeight = "500px";
+    DateTime SDate = DateTime.Now, EDate = DateTime.Now;
+    public List<dtFinancialRegister> dataSource = new List<dtFinancialRegister>();
+    public List<dtFinancialRegister> Stmt = new List<dtFinancialRegister>();
+    SfGrid<dtFinancialRegister> Grid { get; set; }
+    bool backBtnDisable = true;
+    public string? DecimalFormat { get; set; }
+
+    List<string> TypeList = new List<string>()
+    {
+        "All",
+    };
+    public string registerType { get; set; }
+    public const int expectedCount = 15000;
+    public int SkipValue { get; set; }
+    public int TakeValue { get; set; } = 10;
+    public int currentPage { get; set; } = 1;
+    public int Count { get; set; } = 0;
+    public int actualCount { get; set; } = 0;
+    public SfPager Page { get; set; }
+    public decimal? SumDebit, SumCredit;
+    private bool gridPaging = true;
+    private Dictionary<string, object> ClearFilter = new Dictionary<string, object>()
+        {
+            { "title", "Clear Filter"}
+        };
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            Isload = true;
+            BranchID = await localStorage.GetItemAsync<int>("BranchID");
+            user = await localStorage.GetItemAsync<int>("UserID");
+            AccountID = await localStorage.GetItemAsync<int>("AccountID");
+            await FinancialDateService.InitializeDates();
+
+            // var result = await FinServ.GetScalar("Select Entryfrom from company where id =" + BranchID);
+            // result = "{Scalar:" + result + "}";
+            // var ob = JObject.Parse(result.ToString());
+            // var dt = ob["Scalar"]["Entryfrom"].ToString();
+            // SDate = Convert.ToDateTime(dt);
+            // FinancialDateTime financialDate = await FinServ.GetFinancialDateTimeAsync(BranchID);
+            // SDate = financialDate.startDate;
+            // EDate = financialDate.endDate;
+            var dimension = await IJS.InvokeAsync<WindowDimension>("getWindowDimensions");
+            GridHeight = (dimension.Height - 180).ToString() + "px";
+            registerType = TypeList.FirstOrDefault();
+            TypeList.AddRange(await _financial.GetVType(BranchID));
+            if (user == 0)
+            {
+                string HomeUrl = "";
+                HomeUrl = await _UserRights.GetURl("Logout", AccountID);
+                uriHelper.NavigateTo(HomeUrl);
+            }
+            else
+            {
+                DecimalFormat = _GlobalServ.GlobalCurrencyFormat;
+                if (DecimalFormat == null || DecimalFormat == "")
+                {
+
+                    DecimalFormat = "0.00";
+                }
+                await base.OnInitializedAsync();
+                if (VId != null)
+                {
+                    dataSource = (await _financial.GetDataByID(BranchID, Convert.ToInt32(VId))).ToList();
+                }
+            }
+
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+
+            throw ex;
+        }
+        finally
+        {
+            Isload = false;
+        }
+
+
+    }
+    public bool dataCountCheck(int count)
+    {
+        return count > expectedCount ? true : false;
+    }
+    public async Task Search_Click()
+    {
+        try
+        {
+            Isload = true;
+            // if(VId != null)
+            // {
+            //     dataSource = (await _financial.GetDataByID(BranchID, Convert.ToInt32(VId))).ToList();
+            //     Stmt = dataSource.OrderBy(x => x.VDate).ToList();
+            // }
+            // else
+            // {
+            //     FD = SDate.Month.ToString("00") + "-" + SDate.Day.ToString("00") + "-" + SDate.Year;
+            //     TD = EDate.Month.ToString("00") + "-" + EDate.Day.ToString("00") + "-" + EDate.Year;
+            //     if (isDateChanged)
+            //     {
+            //         dataSource = (await _financial.GetData(BranchID, FD.ToString(), TD.ToString())).ToList();
+            //         isDateChanged = false;
+            //     }
+
+            //     if (registerType == "Payment" || registerType == "Sales")
+            //         Stmt = dataSource.Where(x => x.VType == registerType && x.Debit > 0).OrderBy(x => x.VDate).ThenBy(x => x.VType).ThenBy(x => x.VNO).ToList();
+            //     else if (registerType == "Receipt" || registerType == "Purchase")
+            //         Stmt = dataSource.Where(x => x.VType.Contains(registerType) && x.Credit > 0).OrderBy(x => x.VDate).ThenBy(x => x.VType).ThenBy(x => x.VNO).ToList();
+            //     else if (registerType == "Opening")
+            //         Stmt = dataSource.Where(x => x.VType.Contains(registerType)).OrderBy(x => x.VDate).ThenBy(x => x.VType).ThenBy(x => x.VNO).ToList();
+            //     else
+            //         Stmt = dataSource.OrderBy(x => x.VDate).ThenBy(x => x.VType).ThenBy(x => x.VNO).ToList();
+            // }
+            SDate = FinancialDateService.StartDate;
+            EDate = FinancialDateService.EndDate;
+            FD = SDate.Month.ToString("00") + "-" + SDate.Day.ToString("00") + "-" + SDate.Year;
+            TD = EDate.Month.ToString("00") + "-" + EDate.Day.ToString("00") + "-" + EDate.Year;
+            dtFinancialRegisterPaging result = await _financial.GetData(BranchID, FD.ToString(), TD.ToString(), 1, 100, "null", "ButtonSearch", registerType);
+            Count = result.Count;
+            actualCount = result.Count;
+            dataSource = result.Data;
+            SumDebit = result.Debit;
+            SumCredit = result.Credit;
+            if (dataCountCheck(Count))
+            {
+                gridPaging = false;
+            }
+            else
+            {
+                gridPaging = true;
+            }
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+        finally
+        {
+            Isload = false;
+        }
+
+    }
+    public async Task ExcelExport()
+    {
+        try
+        {
+            downloading = true;
+            if (dataSource.Count <= expectedCount && Count <= expectedCount)
+            {
+                ExcelExportProperties excelExportProperties = new ExcelExportProperties();
+                excelExportProperties.FileName = "FinancialRegister.xlsx";
+                await this.Grid.ExportToExcelAsync(excelExportProperties);
+            }
+            else
+            {
+                FD = SDate.Month.ToString("00") + "-" + SDate.Day.ToString("00") + "-" + SDate.Year;
+                TD = EDate.Month.ToString("00") + "-" + EDate.Day.ToString("00") + "-" + EDate.Year;
+                var result = await excelService.DownloadExcel(BranchID, FD, TD);
+                if (result != null)
+                {
+                    var filename = "FinancialRegister.xlsx";
+                    await IJS.InvokeVoidAsync("jsSaveAsFile", filename, Convert.ToBase64String(result.ToArray()));
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+
+            throw ex;
+        }
+        finally
+        {
+            downloading = false;
+        }
+
+    }
+    SfTextBox search;
+    string golablSearchValue = "";
+
+    public async Task Back_Click()
+    {
+        await IJS.InvokeVoidAsync("window.history.back");
+    }
+    public void DateChangeHandler(ChangedEventArgs<DateTime> args)
+    {
+        isDateChanged = true;
+    }
+    public async Task PageSize(PageSizeChangedArgs args)
+    {
+        int page = Grid.PageSettings.CurrentPage;
+        SkipValue = (page * Page.PageSize) - Page.PageSize;
+        TakeValue = Page.PageSize;
+    }
+    public async Task Click(PagerItemClickEventArgs args)
+    {
+        SkipValue = (args.CurrentPage * Page.PageSize) - Page.PageSize;
+        TakeValue = Page.PageSize;
+        int pageNumber = args.CurrentPage;
+        currentPage = pageNumber;
+        int pageSize = 100;
+        FD = SDate.Month.ToString("00") + "-" + SDate.Day.ToString("00") + "-" + SDate.Year;
+        TD = EDate.Month.ToString("00") + "-" + EDate.Day.ToString("00") + "-" + EDate.Year;
+        dtFinancialRegisterPaging result = await _financial.GetData(BranchID, FD.ToString(), TD.ToString(), pageNumber, pageSize, "null", "PageClick", registerType);
+        dataSource = result.Data;
+        await InvokeAsync(StateHasChanged);
+    }
+    public async Task GlobalSearch()
+    {
+
+        if (golablSearchValue != "")
+        {
+            if (actualCount > expectedCount)
+            {
+                FD = SDate.Month.ToString("00") + "-" + SDate.Day.ToString("00") + "-" + SDate.Year;
+                TD = EDate.Month.ToString("00") + "-" + EDate.Day.ToString("00") + "-" + EDate.Year;
+                dtFinancialRegisterPaging result = await _financial.GetData(BranchID, FD.ToString(), TD.ToString(), 1, 100, golablSearchValue ?? "null", "GlobalSearch", registerType);
+                Count = result.Count;
+                dataSource = result.Data;
+            }
+            else
+            {
+                await this.Grid.SearchAsync(golablSearchValue);
+                this.StateHasChanged();
+            }
+
+            this.StateHasChanged();
+        }
+    }
+    public async Task OnInput(InputEventArgs args)
+    {
+        if(args.Value == null && dataSource.Count > 0)
+        {
+            if (actualCount > expectedCount)
+            {
+                FD = SDate.Month.ToString("00") + "-" + SDate.Day.ToString("00") + "-" + SDate.Year;
+                TD = EDate.Month.ToString("00") + "-" + EDate.Day.ToString("00") + "-" + EDate.Year;
+                dtFinancialRegisterPaging result = await _financial.GetData(BranchID, FD.ToString(), TD.ToString(), currentPage, 100, "null", "PageClick", registerType);
+                dataSource = result.Data;
+                Count = result.Count;
+                await InvokeAsync(StateHasChanged);
+            }
+            else
+            {
+                await this.Grid.SearchAsync(args.Value);
+                this.StateHasChanged();
+            }
+        }
+    }
+    public async Task OnCreateSearch()
+    {
+        var Click = EventCallback.Factory.Create<MouseEventArgs>(this, GlobalSearch);
+        await search.AddIconAsync("append", "fa fa-search", new Dictionary<string, object>() { { "onclick", Click } });
+    }
+    List<dtFinancialRegister>? detailedGrid;
+    dtFinancialRegister detail = new dtFinancialRegister();
+    public async Task OnDetaildSelected(DetailDataBoundEventArgs<dtFinancialRegister> args)
+    {
+        if(detail != null && detail != args.Data)
+        {
+            await Grid.ExpandCollapseDetailRowAsync(detail);
+        }
+        detail = args.Data;
+        detailedGrid = new List<dtFinancialRegister>();
+        detailedGrid = await _financial.GetDataByID(BranchID,Convert.ToInt32(args.Data.VID));
+    }
+    public List<ExpandoObject> companyDetails = new List<ExpandoObject>();
+    public async Task ExportPdf()
+    {
+        try
+        {
+            downloading = true;
+            var data = await Grid.GetFilteredRecordsAsync();
+            companyDetails = new List<ExpandoObject>();
+            companyDetails = await _ICompanyManager.GetCompanyDetails(BranchID);
+            DataSource dt = new DataSource
+                {
+                    Parameters = new List<JSReportParameter>
+                {
+                    new JSReportParameter
+                    {
+                        Name = "DateFrom",
+                        Values = new List<string> { SDate.ToString() }
+                    },
+                    new JSReportParameter
+                    {
+                        Name = "DateUpto",
+                        Values = new List<string> { EDate.ToString() }
+                    }                   
+                }
+                };
+            dt.DataSet1 = new List<ExpandoObject>();
+            dt.DataSet2 = new List<ExpandoObject>();
+            dt.ReportName = "Financial Register";
+            dt.DataSet1 = JsonConvert.DeserializeObject<List<ExpandoObject>>(JsonConvert.SerializeObject(data));
+            dt.DataSet2 = JsonConvert.DeserializeObject<List<ExpandoObject>>(JsonConvert.SerializeObject(companyDetails));
+            if (dt.ReportName != "")
+            {
+                var Result = await _BoldReport.GetReport(dt);
+                var filename = dt.ReportName + ".pdf";
+                await JsRuntime.InvokeVoidAsync("jsSaveAsFile", filename, Convert.ToBase64String(Result.ToArray()));
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+        finally
+        {
+            downloading = false;
+        }
+
+    }
+    public async Task Clear_Click()
+    {
+        await Grid!.SearchAsync("");
+        await Grid.ClearFilteringAsync();
+
+    }
+}
+<style>
+    .e-search-icon::before {
+        content: '\e724';
+        font-family: e-icons;
+    }
+
+    .fa-search {
+        font-size: 16px; 
+        cursor: pointer; 
+    }
+</style>

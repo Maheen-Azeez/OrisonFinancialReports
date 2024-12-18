@@ -1,0 +1,804 @@
+﻿@page "/StatementDetails"
+@page "/StatementDetails/{Id}/{FDate}/{TDate}"
+@using OrisonMIS.Client.Services
+@using OrisonMIS.Shared.BoldReport
+@using OrisonMIS.Shared.Dtos
+@using OrisonMIS.Shared.Entities.Financial;
+@using OrisonMIS.Shared.Entities.General;
+@using Microsoft.AspNetCore.Components;
+@using OrisonMIS.Shared.Entities.Inventory;
+@using Syncfusion.Blazor.Buttons;
+@using Syncfusion.Blazor.Grids;
+@using Syncfusion.Blazor.Calendars;
+@using Syncfusion.Blazor.Notifications
+@using Syncfusion.Blazor.Spinner;
+@using Syncfusion.Blazor.Popups;
+@using Syncfusion.Blazor.DropDowns;
+@using System.Data;
+@using Syncfusion.Blazor.Data;
+@using Syncfusion.Blazor.Inputs;
+@using Newtonsoft.Json;
+@using Newtonsoft.Json.Linq;
+@using System.Collections.ObjectModel
+@using System.Dynamic
+@inject Blazored.SessionStorage.ISessionStorageService _sessionStorage
+@inject OrisonMIS.Client.Logics.Contract.BoldReport.IBoldReportManager _BoldReport
+@inject OrisonMIS.Client.Logics.Contract.General.ICompanyManager _ICompanyManager
+
+@inject IJSRuntime JsRuntime
+@inject FinServices FinServ
+@inject FinancialDateTimeService FinancialDateService
+@inject UserRightsService _UserRights
+@inject GlobalService globalService
+@inject NavigationManager uriHelper
+@inject HttpClient http
+@inject AccountStatementCacheService _accountStatementCache
+@using Microsoft.Extensions.Localization
+@using OrisonMIS.Client.Resources
+@using System.Globalization
+@inject IStringLocalizer<SfResources> Localizer
+@inject ToastService ToastService
+
+
+<head>
+    <style>
+        .e-btn2 {
+            width: 142px;
+            cursor: pointer;
+            background-color: transparent;
+            border-color: #007bff;
+            color: #007bff;
+        }
+    </style>
+    <link href="css/OrisonSyncfusionStyles.css" rel="stylesheet" />
+</head>
+
+<div>
+    
+    <SfToast @ref="ToastObj">
+        <ToastPosition X="@ToastPosition"></ToastPosition>
+    </SfToast>
+
+    <div class="box-card-shadow">
+        <div class="row">
+            <div class="col-sm-12" style="padding-bottom:7px;">
+                <div class="row" style="padding-top: 5px;">
+                    <div class="col-md-4">
+                        <SfButton @onclick="ExcelExport" IconCss="Icon excel" CssClass="e-btn" Content=@Localizer["Excel"] IsPrimary="false"/>
+                        <SfButton @onclick="ExportPdf" IconCss="Icon pdf" CssClass="e-btn" Content=@Localizer["PDF"] IsPrimary="false"/>
+                        <SfButton @onclick="ExportDetailedPDF" IconCss="Icon print" CssClass="e-btn e-btn-auto" Content=@Localizer["Detailed"] IsPrimary="false" />
+                        @if (Downloading)
+                        {
+                            <img src="gif/loading-waiting.gif" style="padding-left:2px; width: 20px; height: 20px;" />
+                        }
+                    </div>
+                    <div class="col-md-4 text-center" >
+                        @if (_accountStatementCache.AccountName != null && _accountStatementCache.AccountCode != null)
+                        {
+                            <h4 style="font-weight:bold;">@($"{_accountStatementCache.AccountName} ({_accountStatementCache.AccountCode})")</h4>
+                        }
+                    </div>
+                    <div class="col-md-4" style="text-align:end">
+                        <label class="page-heading">@Localizer["Account Statement"]</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="box-card-shadow">
+        <div class="row">
+            <div class="col-sm-12" style="padding-bottom:8px;">
+                <div class="row direction">
+                    <div class="col-md-12">
+                        <SfDatePicker @bind-Value="@FinancialDateService.StartDate" Width="120px" Format="dd/MM/yyyy" Placeholder=@Localizer["From Date"] CssClass="textbox"></SfDatePicker>
+                        <SfDatePicker @bind-Value="@FinancialDateService.EndDate" Width="120px" Format="dd/MM/yyyy" Placeholder=@Localizer["To Date"] CssClass="textbox"></SfDatePicker>
+@*                         <SfComboBox Width="200px" @bind-Value="_accountStatementCache.StatementType" TValue="OrisonMIS.Shared.Entities.Financial.StatementType" TItem="OrisonMIS.Shared.Entities.Financial.StatementType" DataSource="_accountStatementCache.TypesOfStatements"></SfComboBox>
+ *@                        
+                        <SfDropDownList Width="200px" @bind-Value="_accountStatementCache.StatementType" TValue="OrisonMIS.Shared.Entities.Financial.StatementType" TItem="OrisonMIS.Shared.Entities.Financial.StatementType" Placeholder="Select a game" DataSource="@_accountStatementCache.TypesOfStatements"> </SfDropDownList>
+                        <SfTextBox @bind-Value="@_accountStatementCache.SelectedAccount.AccountName" CssClass="textbox" @ref="@AccountRef" Placeholder=@Localizer["Please Select Account"] ShowClearButton="true" Readonly="true" Width="350px" Focus="@FocusHandler"></SfTextBox>
+                        <SfCheckBox @bind-Checked="@AllBranches" Label=@Localizer["All Branches"]></SfCheckBox>
+                        <SfButton IconCss="Icon search" @onclick="@Search_Click" title=@Localizer["Search"] CssClass="widthset"></SfButton>
+                        <SfButton @onclick="@Back_Click" Content=@Localizer["Back"] title="Search" CssClass="widthset"></SfButton>
+                        <SfTextBox @ref="search" Input="OnInput" Placeholder=@Localizer["Global Search"] Width="250px" ShowClearButton="true" CssClass="e-btn2"></SfTextBox>
+                        <SfButton IconCss="Icon filter" CssClass="e-btn4" Content=" " @onclick="@Clear_Click" HtmlAttributes="@ClearFilter"></SfButton>
+                        @if (IsLoad)
+                        {
+                            <img src="gif/loading-waiting.gif" style="padding-left:2px; width: 20px; height: 20px;" />
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="box-card-shadow">
+
+        <SfGrid DataSource="@_accountStatementCache.Statement"
+                GridLines="GridLine.Both"
+                Height="@GridHeight"
+                Width="100%"
+                AllowSorting="true"
+                AllowExcelExport="true"
+                AllowPdfExport="true"
+                @ref="Grid"
+                AllowPaging="true"
+                AllowResizing="true"
+                AllowFiltering="true"
+                EnablePersistence="true"
+                RowHeight="25">
+                @{runningTotal = 0;}
+            <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel" ShowFilterBarStatus="true"></GridFilterSettings>
+            <GridEvents OnActionComplete="HandleActionComplete" TValue="AccStmt"></GridEvents>
+            <GridPageSettings PageSize="200"></GridPageSettings>
+            <GridAggregates>
+                <GridAggregate>
+                    <GridAggregateColumns>
+                        <GridAggregateColumn Field=@nameof(AccStmt.Debit) Type="AggregateType.Sum" Format="@DecimalFormat">
+                            <FooterTemplate>
+                                @{
+                                    var aggregate = (context as AggregateTemplateContext);
+                                    <div>
+                                        <p>@aggregate.Sum</p>
+                                    </div>
+                                }
+                            </FooterTemplate>
+                        </GridAggregateColumn>
+
+                        <GridAggregateColumn Field=@nameof(AccStmt.Credit) Type="AggregateType.Sum" Format="@DecimalFormat">
+                            <FooterTemplate>
+                                @{
+                                    var aggregate = (context as AggregateTemplateContext);
+                                    <div>
+                                        <p>@aggregate.Sum</p>
+                                    </div>
+                                }
+                            </FooterTemplate>
+                        </GridAggregateColumn>
+                        <GridAggregateColumn Field=@nameof(AccStmt.RBalance) Type="AggregateType.Custom" Format="@DecimalFormat">
+                            <FooterTemplate>
+                                @{
+                                    var aggregate = (context as AggregateTemplateContext);
+                                    <div>
+
+                                        <p>@RBalanceSum</p>
+                                    </div>
+                                }
+                            </FooterTemplate>
+                        </GridAggregateColumn>
+                        <GridAggregateColumn Field=@nameof(AccStmt.Balance) Type="AggregateType.Sum" Format="@DecimalFormat">
+                            <FooterTemplate>
+                                @{
+                                    var aggregate = (context as AggregateTemplateContext);
+                                    <div>
+                                        <p>@aggregate.Sum</p>
+                                    </div>
+                                }
+                            </FooterTemplate>
+
+                        </GridAggregateColumn>
+                    </GridAggregateColumns>
+                </GridAggregate>
+            </GridAggregates>
+
+            <GridColumns>
+                <GridColumn Field=@nameof(AccStmt.VID) Width="30px" Visible="false" Index="0"></GridColumn>
+                    <GridColumn Width="40px">
+                        <Template>
+                            @{
+                                var val = (context as AccStmt);
+                                int? id = val.VID;
+                                if (id != null && id > 0)
+                                {
+                                    <div>
+                                        <a @onclick="@(async() => {await viewVoucher(id); })"><img src="Images/View.png" style="height: 20px; width: 20px; cursor: pointer;" /></a>
+                                    </div>
+                                }
+                            }
+                        </Template>
+                    </GridColumn>
+                <GridColumn Field="@nameof(AccStmt.EffectiveDate)" HeaderText=@Localizer["Date"] Width="70px" Index="2" Format="dd/MM/yyyy"></GridColumn>
+                <GridColumn Field="@nameof(AccStmt.VNo)" HeaderText=@Localizer["VNo"] Width="50px" Index="1"></GridColumn>
+                <GridColumn Field="@nameof(AccStmt.Description)" HeaderText=@Localizer["Description"]  Width="200px" Index="3"></GridColumn>
+                <GridColumn Field="@nameof(AccStmt.MainAccountName)" HeaderText=@Localizer["Party"] Width="200px"></GridColumn>
+                <GridColumn Field="@nameof(AccStmt.RefNo)" HeaderText=@Localizer["RefNo"] Index="4" Visible="false" Width="20px"></GridColumn>
+                <GridColumn Field="@nameof(AccStmt.Debit)" HeaderText=@Localizer["Debit"] Index="5" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Width="80px" Format="@DecimalFormat"></GridColumn>
+                <GridColumn Field="@nameof(AccStmt.Credit)" HeaderText=@Localizer["Credit"] Index="6" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Width="80px" Format="@DecimalFormat"></GridColumn>
+                <GridColumn Field="@nameof(AccStmt.Balance)" Visible="false" HeaderText=@Localizer["Balance"] Index="7" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Width="80px" Format="@DecimalFormat"></GridColumn>
+                <GridColumn Field="@nameof(AccStmt.RBalance)" HeaderText=@Localizer["RBalance"] Index="8" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Width="80px" Format="@DecimalFormat">
+                    <Template>
+                        @{
+                            var statement = context as AccStmt;
+                            if (statement != null)
+                            {
+                                statement.RBalance = 0;
+                                statement.Balance = Math.Round((Convert.ToDouble(statement.Debit) - Convert.ToDouble(statement.Credit)), 2);
+
+                                if (statement.Debit != null)
+                                {
+                                    runningTotal = Math.Round((runningTotal + Convert.ToDouble(statement.Debit)), 2);
+                                    statement.RBalance = runningTotal;
+                                }
+                                if (statement.Credit != null)
+                                {
+                                    runningTotal = Math.Round((runningTotal - Convert.ToDouble(statement.Credit)), 2);
+                                    statement.RBalance = runningTotal;
+                                }
+                            }
+                        }
+                        @Convert.ToDouble(statement?.RBalance == null ? 0 : statement.RBalance).ToString(DecimalFormat)
+                    </Template>
+                </GridColumn>
+            </GridColumns>
+            @if (Loading)
+            {
+                <svg width="2500" height="2500" viewBox="126.444 2.281 589 589"><image href="gif/loading-waiting.gif" height="590px" width="770px" /></svg>
+            }
+        </SfGrid>                              
+    </div>
+</div>
+<div>
+    <SfDialog Width="80%" Height="90%" IsModal="true" @bind-Visible="AccountSearch"  ShowCloseIcon="true">
+        <DialogEvents/>
+
+        <DialogTemplates>
+            <Header>
+                <div style="padding-top:10px">
+                    <SfTextBox @ref="searchAccount" Input="OnInputAccount" Placeholder=@Localizer["Search here"]  ShowClearButton="true" CssClass="e-btn2"></SfTextBox>
+                </div>
+            </Header>
+            <Content>
+                <div>
+                    <SfGrid DataSource="@AccList"
+                            GridLines="GridLine.Both"
+                            Height="100%" Width="100%"
+                            AllowPaging="true"
+                            AllowFiltering="true"
+                            AllowResizing="true"
+                            AllowSorting="true"
+                            @ref = "AccountList"
+                            AllowReordering="true"
+                            ShowColumnChooser="true"
+                            EnablePersistence="true"
+                            RowHeight="23">
+                        <GridEvents RowSelecting="AccountRowSelectingHandler" TValue="dtInvAccounts"></GridEvents>
+                        <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel" ShowFilterBarStatus="false"></GridFilterSettings>
+                        <GridPageSettings PageSize="50"></GridPageSettings>
+                        <GridSelectionSettings PersistSelection="true" Mode="Syncfusion.Blazor.Grids.SelectionMode.Both" Type="Syncfusion.Blazor.Grids.SelectionType.Single"></GridSelectionSettings>
+                        <GridTemplates>
+                        </GridTemplates>
+                        <GridColumns>
+                            <GridColumn Field=@nameof(dtInvAccounts.ID) IsPrimaryKey="true" Index="1" Visible="false" AllowFiltering="false"></GridColumn>
+                            <GridColumn Field=@nameof(dtInvAccounts.AccountCode) HeaderText=@Localizer["Account Code"] Index="2" Width="30%"></GridColumn>
+                            <GridColumn Field=@nameof(dtInvAccounts.AccountName) HeaderText=@Localizer["Account Name"] Index="3" Width="70%"></GridColumn>                            
+                            <GridColumn Field=@nameof(dtInvAccounts.AccCategory) HeaderText=@Localizer["Category"] Index="4" Width="30%"></GridColumn>
+                        </GridColumns>
+                    </SfGrid>
+                </div>
+            </Content>
+        </DialogTemplates>
+        <DialogButtons>
+            <DialogButton Content="Cancel" CssClass="e-btn" @onclick="@(() => AccountSearch = false)" />
+        </DialogButtons>
+        <DialogAnimationSettings Effect="@DialogEffect.None"></DialogAnimationSettings>
+    </SfDialog>
+</div>
+<div class="col-lg-12 control-section toast-default-section">
+    <SfToast ID="toast_type" @ref="ToastObj">
+        <ToastPosition X="@ToastPosition"></ToastPosition>
+    </SfToast>
+</div>
+
+@code
+{
+    [Parameter]
+    public string Id { get; set; } 
+    [Parameter]
+    public string FDate { get; set; } 
+    [Parameter]
+    public string TDate { get; set; }
+
+    // private string BalanceAmount = string.Empty;
+
+    // private string Name = string.Empty;
+    // private string Remarks = string.Empty;
+    // private string FD = string.Empty;
+    // private string TD = string.Empty;
+    private string GridHeight = "500px";
+    private static string? ToastContent;
+    private string? DecimalFormat { get; set; }
+    private string ToastPosition = "Right";
+    private string Category = string.Empty;
+
+    private bool Downloading = false;
+    private bool IsLoad = false;
+    private bool Loading = false;
+    private bool AllBranches = false;
+    private bool _accountSearch;
+
+    // DateTime SDate = DateTime.Now; 
+    // DateTime EDate = DateTime.Now;
+
+    private int user;
+    private int BranchID;
+    private int AccountID;
+    private int ID;
+
+    private double runningTotal;
+
+    private SfTextBox? AccountRef;
+    private SfGrid<AccStmt>? Grid { get; set; }
+    private SfToast? ToastObj;
+
+    private ObservableCollection<AcctStmt>? DataSource { get; set; }
+    // private ObservableCollection<AccStmt>? Statement { get; set; }
+
+    private List<dtInvAccounts> AccList = new List<dtInvAccounts>();
+    // private IEnumerable<StatementType> statementTypes;
+
+    // private dtInvAccounts ObAcc = new dtInvAccounts();
+    // private AccStmt? AccountStatementObject = new AccStmt();
+    private UserRights userStaffRights = new UserRights();
+    // private OrisonMIS.Shared.Entities.Financial.StatementType SelectedStatementType;
+
+    // private Query LocalDataQueryMemberItem { get; set; } = new Query().Take(10);
+    private UserRights? objUserRight = new UserRights();
+
+
+    public bool AccountSearch
+    {
+        get => _accountSearch;
+        set
+        {
+            if (_accountSearch != value)
+            {
+                _accountSearch = value;
+                if (_accountSearch)
+                {
+
+                    InvokeAsync(
+                        async () =>
+                        {
+                            await Task.Delay(100);
+                            await searchAccount?.FocusAsync();
+                        });
+                }
+            }
+        }
+    }
+
+    private List<ToastModel> Toast = new List<ToastModel>
+    {
+        new ToastModel{Content="Choose an account, please.", CssClass="e-toast-info", Icon="e-error toast-icons" },
+
+    };
+    private Dictionary<string, object> ClearFilter = new Dictionary<string, object>()
+    {
+        { "title", "Clear Filter"}
+    };
+
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            IsLoad = true;
+            await GetSessionDetails();
+            await SetGridFormatAndStyle();
+
+            if (user == 0) { uriHelper.NavigateTo(await _UserRights.GetURl("Logout", AccountID)); }
+
+            if (Id != null) { 
+                await InitializeAccountStatement(Convert.ToInt32(Id)); 
+                await FetchAccountStatementById(Convert.ToInt32(Id));
+
+            }
+            AccList = globalService.AccountStatement.ToList();
+            var staffAccount = await _IAccStmt.CheckPermissionAndGetStaffAccount(user, "AcctStatmentStaff", "Financial Reports", BranchID, Category);
+            if (staffAccount != null)
+            {
+                AccList = AccList
+                    .Where(acc => acc.Category != "STAFF")
+                    .Concat(staffAccount)
+                    .ToList();
+            }
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+        finally
+        {
+            IsLoad = false;
+
+        }
+    }
+
+
+    public async Task GetSessionDetails()
+    {
+        BranchID = await _sessionStorage.GetItemAsync<int>("BranchID");
+        user = await _sessionStorage.GetItemAsync<int>("UserID");
+        AccountID = await _sessionStorage.GetItemAsync<int>("AccountID");
+        Category = await _sessionStorage.GetItemAsync<string>("Category");
+        await FinancialDateService.InitializeDates();
+    }
+
+    public async Task SetGridFormatAndStyle()
+    {
+        DecimalFormat = globalService.GlobalCurrencyFormat == null ? "0.00" : globalService.GlobalCurrencyFormat;
+        var dimension = await JsRuntime.InvokeAsync<WindowDimension>("getWindowDimensions");
+        GridHeight = (dimension.Height - 180).ToString() + "px";
+    }
+
+    public async Task SetUserRights()
+    {
+
+        userStaffRights = await _UserRights.GetUserRights(user, "AcctStatmentStaff", "Financial Reports", BranchID);
+
+    }
+
+    public async Task Search_Click()
+    {
+
+        if (_accountStatementCache.SelectedAccount.ID == 0)
+        {
+            await this.ToastObj.ShowAsync(Toast[0]);
+            return;
+        }
+        Loading = true;
+        try
+        {
+            await FetchAccountStatementById(_accountStatementCache.SelectedAccount.ID);
+
+        }
+        finally
+        {
+            Loading = false;
+            await InvokeAsync(StateHasChanged);
+        }
+
+    }
+
+    public async Task InitializeAccountStatement(int id)
+    {
+        _accountStatementCache.SelectedAccount = new dtInvAccounts();
+        _accountStatementCache.Statement = new ObservableCollection<AccStmt>();
+        var account = globalService.AccountStatement
+                                .Where(x => x.ID == Convert.ToInt32(Id))
+                                .Select(x => new { x.AccountName, x.AccountCode, x.ID })
+                                .FirstOrDefault();
+
+        if (account != null)
+        {
+            _accountStatementCache.SelectedAccount.ID = account.ID;
+            _accountStatementCache.SelectedAccount.AccountName = account.AccountName;
+            _accountStatementCache.AccountName = account.AccountName;
+            _accountStatementCache.AccountCode = account.AccountCode;          
+        }
+        await Task.CompletedTask;
+    }
+
+    public async Task FetchAccountStatementById(int id)
+    {
+        IsLoad = true;
+
+        try
+        {
+            HttpResponseMessage response = (await _IAccStmt.Show(AllBranches == true ? 0 : BranchID, FinancialDateService.StartDate.ToString(), FinancialDateService.EndDate.ToString(), id, _accountStatementCache.StatementType));
+            if (response.IsSuccessStatusCode)
+            {
+                DataSource = await response.Content.ReadFromJsonAsync<ObservableCollection<AcctStmt>>();
+
+                _accountStatementCache.Statement = new ObservableCollection<AccStmt>(DataSource.Select(index => new AccStmt
+                    {
+                        VID = index.VID,
+                        EffectiveDate = index.EffectiveDate,
+                        VNo = index.VNo,
+                        RefNo = index.RefNo,
+                        Description = index.Description,
+                        Debit = index.Debit,
+                        Credit = index.Credit,
+                        MainAccountName = index.MainAccountName,
+                        AccountId = index.AccountId,
+                        RowType = index.RowType,
+                    }).OrderBy(x => x.EffectiveDate).Cast<AccStmt>());
+                // SetRunningTotal(_accountStatementCache.Statement);
+            }
+            else
+            {
+                ErrorResponseDto error = await response.Content.ReadFromJsonAsync<ErrorResponseDto>();
+                _accountStatementCache.Statement = null;
+                this.ToastService.ShowToast(new ToastOption()
+                    {
+                        Title = "Warning...",
+                        Content = error.Message,
+                        CssClass = "e-toast-danger",
+                        Icon = "e-error toast-icons",
+                        Timeout = 1000,
+                        X = "Right",
+                        Y = "Top",
+                        CloseButton = true
+                    });
+                await HandleException(error.Message, "e-toast-warning", "e-error toast-icons");
+            }
+        }
+        finally
+        {
+            IsLoad = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public async Task HandleException(string errorMsg,string cssClass, string cssIcon)
+    {
+        var toast = new ToastModel { Content = errorMsg, CssClass = cssClass, Icon = cssIcon };
+        await this.ToastObj.ShowAsync(toast);
+    }
+
+    // public void SetRunningTotal(ObservableCollection<AccStmt> _Stmt)
+    // {
+    //     runningTotal = 0;
+    //     foreach (var dr in _Stmt)
+    //     {
+    //         dr.RBalance = 0;
+    //         dr.Balance = Math.Round((Convert.ToDouble(dr.Debit) - Convert.ToDouble(dr.Credit)), 2);
+
+    //         if (dr.RowType.ToString() == "Dr")
+    //         {
+    //             runningTotal = Math.Round((runningTotal + Convert.ToDouble(dr.Debit)), 2);
+    //             dr.RBalance = runningTotal;
+    //         }
+    //         if (dr.RowType.ToString() == "Cr")
+    //         {
+    //             runningTotal = Math.Round((runningTotal - Convert.ToDouble(dr.Credit)), 2);
+    //             dr.RBalance = runningTotal;
+    //         }
+    //     }
+    // }
+
+    public async Task ExcelExport()
+    {
+        Downloading = true;
+        await this.Grid.ExportToExcelAsync();
+        Downloading = false;
+
+    }
+    public List<ExpandoObject> companyDetails = new List<ExpandoObject>();
+    public async Task ExportPdf()
+    {
+        try
+        {
+            Downloading = true;
+            var data = await Grid.GetFilteredRecordsAsync();
+            var dataList = new List<object>();
+
+            if (data is IEnumerable<object> enumerableData)
+            {
+                foreach (var item in enumerableData)
+                {
+                    dataList.Add(item);
+                }
+            }
+            else
+            {
+                dataList.Add(data);
+            }
+            companyDetails = new List<ExpandoObject>();
+            companyDetails = await _ICompanyManager.GetCompanyDetails(BranchID);
+            DataSource dt = new DataSource
+            {
+                Parameters = new List<JSReportParameter>
+                {
+                    new JSReportParameter
+                    {
+                        Name = "DateFrom",
+                        Values = new List<string> { FinancialDateService.StartDate.ToString() }
+                    },
+                    new JSReportParameter
+                    {
+                        Name = "DateUpto",
+                        Values = new List<string> { FinancialDateService.EndDate.ToString() }
+                    },
+                    new JSReportParameter
+                    {
+                        Name = "AccountName",
+                        Values = new List<string> { _accountStatementCache.SelectedAccount.AccountName.ToString() }
+                    },
+                    new JSReportParameter
+                    {
+                        Name = "AccountCode",
+                        Values = new List<string> { _accountStatementCache.SelectedAccount.AccountCode.ToString() }
+                    }
+                }
+            };
+            dt.DataSet1 = new List<ExpandoObject>();
+            dt.DataSet2 = new List<ExpandoObject>();
+            dt.ReportName = "Account Statement";
+            dt.DataSet1 = JsonConvert.DeserializeObject<List<ExpandoObject>>(JsonConvert.SerializeObject(dataList));
+            dt.DataSet2 = JsonConvert.DeserializeObject<List<ExpandoObject>>(JsonConvert.SerializeObject(companyDetails));
+            if (dt.ReportName != "")
+            {
+                var Result = await _BoldReport.GetReport(dt);
+                var filename = dt.ReportName + ".pdf";
+                await JsRuntime.InvokeVoidAsync("jsSaveAsFile", filename, Convert.ToBase64String(Result.ToArray()));
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+        finally
+        {
+            Downloading = false;
+        }
+
+    }
+    public async Task ExportDetailedPDF()
+    {
+        try
+        {
+            Downloading = true;
+            var data = await Grid.GetFilteredRecordsAsync();
+            var dataList = new List<object>();
+
+            if (data is IEnumerable<object> enumerableData)
+            {
+                foreach (var item in enumerableData)
+                {
+                    dataList.Add(item);
+                }
+            }
+            else
+            {
+                dataList.Add(data);
+            }
+            companyDetails = new List<ExpandoObject>();
+            companyDetails = await _ICompanyManager.GetCompanyDetails(BranchID);
+            DataSource dt = new DataSource
+                {
+                    Parameters = new List<JSReportParameter>
+                {
+                    new JSReportParameter
+                    {
+                        Name = "DateFrom",
+                        Values = new List<string> { FinancialDateService.StartDate.ToString() }
+                    },
+                    new JSReportParameter
+                    {
+                        Name = "DateUpto",
+                        Values = new List<string> { FinancialDateService.EndDate.ToString() }
+                    },
+                    new JSReportParameter
+                    {
+                        Name = "AccountName",
+                        Values = new List<string> { _accountStatementCache.SelectedAccount.AccountName.ToString() }
+                    },
+                    new JSReportParameter
+                    {
+                        Name = "AccountCode",
+                        Values = new List<string> { _accountStatementCache.SelectedAccount.AccountCode.ToString() }
+                    }
+                }
+                };
+            dt.DataSet1 = new List<ExpandoObject>();
+            dt.DataSet2 = new List<ExpandoObject>();
+            dt.ReportName = "Account Statement Detailed";
+            dt.DataSet1 = JsonConvert.DeserializeObject<List<ExpandoObject>>(JsonConvert.SerializeObject(dataList));
+            dt.DataSet2 = JsonConvert.DeserializeObject<List<ExpandoObject>>(JsonConvert.SerializeObject(companyDetails));
+            if (dt.ReportName != "")
+            {
+                var Result = await _BoldReport.GetReport(dt);
+                var filename = dt.ReportName + ".pdf";
+                await JsRuntime.InvokeVoidAsync("jsSaveAsFile", filename, Convert.ToBase64String(Result.ToArray()));
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+        finally
+        {
+            Downloading = false;
+        }
+
+    }
+
+    SfTextBox searchAccount;
+    SfGrid<dtInvAccounts> AccountList { get; set; }
+    public void OnInputAccount(InputEventArgs args)
+    {
+        this.AccountList.SearchAsync(args.Value);
+        this.StateHasChanged();
+    }
+
+    SfTextBox search;
+    public void OnInput(InputEventArgs args)
+    {
+        this.Grid.SearchAsync(args.Value);
+        this.StateHasChanged();
+    }
+    private async Task FocusHandler(FocusInEventArgs args)
+    {
+
+        AccountSearch = true;
+        // if (userStaffRights.AllowOpen && Category == "Administrator")
+        // {
+        //     var staffAccounts = await _IAccStmt.GetStaffAccounts(BranchID);
+        //     AccList.AddRange(staffAccounts);
+        //     // globalService.AccountStatement.Where(x => x.AccCategory != "STAFF" && x.ID != 54).ToList();
+        // }
+        // else
+        // {
+        //     AccList.RemoveAll(account => account.AccCategory == "STAFF" && account.ID == 54);
+        // }
+        await AccountRef.FocusOutAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+    public async Task AccountRowSelectingHandler(RowSelectingEventArgs<dtInvAccounts> args)
+    {
+        try
+        {
+            Loading = true;
+            AccountSearch = false;
+            _accountStatementCache.SelectedAccount = args.Data;
+            await FetchAccountStatementById(_accountStatementCache.SelectedAccount.ID);
+
+        }
+        finally
+        {
+            Loading = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public async Task viewVoucher(int? VId)
+    {
+        uriHelper.NavigateTo(uriHelper.BaseUri + $"FinancialRegister/{VId}");
+    }
+    public async Task Back_Click()
+    {
+        await JsRuntime.InvokeVoidAsync("window.history.back");
+    }
+
+    string RBalanceSum = "0.00";
+    private async Task HandleActionComplete(Syncfusion.Blazor.Grids.ActionEventArgs<AccStmt> args)
+    {
+        // if(args.RequestType == Syncfusion.Blazor.Grids.Action.Sorting || args.RequestType == Syncfusion.Blazor.Grids.Action.Searching)
+        if (Grid != null)
+        {
+            var filteredRecords = await Grid.GetFilteredRecordsAsync();
+            if (filteredRecords is List<AccStmt> filteredData)
+            {
+                // Recalculate the sum based on filtered records
+                RBalanceSum = creditDebitDifference(filteredData);
+                StateHasChanged(); // Update the UI
+            }
+        }
+    }
+    
+    private string creditDebitDifference(List<AccStmt> filteredData)
+    {
+        if (filteredData == null || !filteredData.Any())
+        {
+            return "0.00";
+        }
+        var result = filteredData.Aggregate(
+            (debit: 0m, credit: 0m), 
+            (acc, x) => (
+                acc.debit + (x.Debit ?? 0),
+                acc.credit + (x.Credit ?? 0)
+            )
+        );
+
+        return (result.debit - result.credit).ToString(@DecimalFormat);
+    }
+    
+    public async Task Clear_Click()
+    {
+        await Grid!.SearchAsync("");
+        await Grid.ClearFilteringAsync();
+
+    }
+}

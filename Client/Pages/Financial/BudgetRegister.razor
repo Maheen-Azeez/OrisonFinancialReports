@@ -1,0 +1,241 @@
+﻿@page "/BudgetRegister"
+@page "/BudgetRegister/{Query}"
+@using OrisonMIS.Client.Services
+@using OrisonMIS.Shared.Entities.Financial;
+@using Microsoft.AspNetCore.Components;
+@using OrisonMIS.Shared.Entities.General
+@using Syncfusion.Blazor.Buttons;
+@using Syncfusion.Blazor.TreeGrid;
+@using Syncfusion.Blazor.Grids;
+@using Syncfusion.Blazor.Calendars;
+@using Syncfusion.Blazor.Spinner;
+@using Syncfusion.Blazor.DropDowns;
+@using Newtonsoft.Json;
+@using Newtonsoft.Json.Linq;
+@inject NavigationManager uriHelper
+@inject HttpClient http
+@inject OrisonMIS.Client.Services.FinServices FinServ
+@inject OrisonMIS.Client.Services.UserRightsService _UserRights
+@inject GlobalService _GlobalServ
+@inject OrisonMIS.Client.Logics.Contract.Financial.IStmt _IStmt
+@inject OrisonMIS.Client.Logics.Contract.Financial.IAccStmt _IAccStmt
+@inject OrisonMIS.Client.Logics.Contract.Inventory.IInvAccountManager _InvAccountManager
+@inject OrisonMIS.Client.Logics.Contract.Financial.IItemMasterManager _ItemMasterManager
+@inject OrisonMIS.Client.Logics.Contract.Inventory.IInvItemsManager _InvItemsManager
+@inject Blazored.SessionStorage.ISessionStorageService localStorage
+@inject IJSRuntime JsRuntime
+@inject FinancialDateTimeService FinancialDateService
+@using Microsoft.Extensions.Localization
+@using OrisonMIS.Client.Resources
+@inject IStringLocalizer<SfResources> Localizer
+<head>
+    <link href="css/OrisonSyncfusionStyles.css" rel="stylesheet" />
+</head>
+
+<div>
+    <div class="box-card-shadow">
+
+        <div class="row">
+            <div class="col-sm-12" style="padding-bottom:7px;">
+                <div class="row" style="padding-top: 5px;">
+                    <div class="col-md-8">
+                        <SfButton @onclick="ExcelExport" IconCss="Icon excel" CssClass="e-btn" Content=@Localizer["Excel"] IsPrimary="false" />
+                        <SfButton @onclick="ExportPdf" IconCss="Icon pdf" CssClass="e-btn" Content=@Localizer["PDF"] IsPrimary="false" />
+                    </div>
+                    <div class="col-md-4" style="text-align:end">
+                        <label class="page-heading">@Localizer["Budget Register"]</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="box-card-shadow">
+
+        <div class="row">
+            <div class="col-sm-12" style="padding-bottom:7px;">
+                <div class="row">
+                    <div class="col-md-12">
+                        <SfDatePicker @bind-Value="@FinancialDateService.StartDate" Format="dd/MM/yyyy" title=@Localizer["From Date"] Width="120px" Placeholder=@Localizer["From Date"]></SfDatePicker>
+                        <SfDatePicker @bind-Value="@FinancialDateService.EndDate" Format="dd/MM/yyyy" title=@Localizer["To Date"] Width="120px" Placeholder=@Localizer["To Date"]></SfDatePicker>
+                        <SfComboBox TValue="string" TItem="string" Width="120px" PopupHeight="230px" Autofill="true" Placeholder=@Localizer["Fin Year"] DataSource="@Year" @bind-Value="@FinYear">
+                        </SfComboBox>
+
+                        <SfButton IconCss="Icon search" @onclick="@Search_Click" title=@Localizer["Search"] CssClass="widthset"></SfButton>
+                        <SfButton IconCss="Icon filter" CssClass="e-btn4" Content=" " @onclick="@Clear_Click" HtmlAttributes="@ClearFilter"></SfButton>
+
+                        @if (Isload)
+                        {
+                            <img src="gif/loading-waiting.gif" style="padding-left:2px; width: 20px; height: 20px;" />
+                        }
+
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="box-card-shadow">
+        <div class="col-md-12 col-sm-12">
+            <div class="row" style="padding-top:0px;">
+                <div class="table-responsive" style="position: relative; min-height:600px; min-width: 300px ">
+                    @if (Stmt == null)
+                    {
+                        <p><em>No data...</em></p>
+                    }
+                    else
+                    {
+@*                         <SfTreeGrid DataSource="@Stmt"
+                                    GridLines="GridLine.Both"
+                                    Height="550"
+                                    Width="100%"
+                                    AllowExcelExport="true"
+                                    IdMapping="AccountID"
+                                    ParentIdMapping="ParentID"
+                                    AllowPdfExport="true"
+                                    @ref="Grid"
+                                    RowHeight="25">
+                            <TreeGridSortSettings>
+                                <TreeGridSortColumns>
+                                    <TreeGridSortColumn Field="@nameof(BudgetReg.SortField)" Direction="SortDirection.Ascending"></TreeGridSortColumn>
+                                    <TreeGridSortColumn Field="@nameof(BudgetReg.ParentLevel)" Direction="SortDirection.Ascending"></TreeGridSortColumn>
+                                </TreeGridSortColumns>
+                            </TreeGridSortSettings>
+                            <TreeGridColumns>
+                                <TreeGridColumn Field="@nameof(BudgetReg.AccountName)" HeaderText="Account Name" Width="40%"></TreeGridColumn>
+                                <TreeGridColumn Field="@nameof(BudgetReg.Budget)" HeaderText="Budget" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Width="10%" Format="@DecimalFormat"></TreeGridColumn>
+                                <TreeGridColumn Field="@nameof(BudgetReg.Actual)" HeaderText="Actual" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Width="10%" Format="@DecimalFormat"></TreeGridColumn>
+                                <TreeGridColumn Field="@nameof(BudgetReg.Variance)" HeaderText="Variance" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Width="10%" Format="@DecimalFormat"></TreeGridColumn>
+                                <TreeGridColumn Field="@nameof(BudgetReg.AmountUptodate)" HeaderText="Amount Upto date" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Width="15%" Format="@DecimalFormat"></TreeGridColumn>
+                                <TreeGridColumn Field="@nameof(BudgetReg.ActualAmountUptodate)" HeaderText="Actual Amt Upto date" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Width="15%" Format="@DecimalFormat"></TreeGridColumn>
+                                <TreeGridColumn Field="@nameof(BudgetReg.BudgetPerc)" HeaderText="Budget %" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Width="10%" Format="P"></TreeGridColumn>
+                            </TreeGridColumns>
+                        </SfTreeGrid> *@
+
+                        <SfGrid DataSource="@Stmt"
+                                GridLines="GridLine.Both"
+                                Height="@GridHeight"
+                                Width="100%"
+                                AllowSorting="true"
+                                AllowExcelExport="true"
+                                AllowPdfExport="true"
+                                @ref="Grid"
+                                AllowPaging="true"
+                                AllowResizing="true"
+                                AllowFiltering="true"
+                                EnablePersistence="true"
+                                RowHeight="25">
+                            <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel" ShowFilterBarStatus="true"></GridFilterSettings>
+                            <GridPageSettings PageSize="100"></GridPageSettings>
+                           
+                            <GridColumns>
+                                <GridColumn Field="@nameof(BudgetReg.AccountName)" HeaderText=@Localizer["Account Name"] Width="40%"></GridColumn>
+                                <GridColumn Field="@nameof(BudgetReg.Budget)" HeaderText=@Localizer["Budget"] TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Width="10%" Format="@DecimalFormat"></GridColumn>
+                                <GridColumn Field="@nameof(BudgetReg.Actual)" HeaderText=@Localizer["Actual"] TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Width="10%" Format="@DecimalFormat"></GridColumn>
+                                <GridColumn Field="@nameof(BudgetReg.Variance)" HeaderText=@Localizer["Variance"] TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Width="10%" Format="@DecimalFormat"></GridColumn>
+                                <GridColumn Field="@nameof(BudgetReg.AmountUptodate)" HeaderText=@Localizer["Amount Upto date"] TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Width="15%" Format="@DecimalFormat"></GridColumn>
+                                <GridColumn Field="@nameof(BudgetReg.ActualAmountUptodate)" HeaderText=@Localizer["Actual Amt Upto date"] TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Width="15%" Format="@DecimalFormat"></GridColumn>
+                                <GridColumn Field="@nameof(BudgetReg.BudgetPerc)" HeaderText=@($"{@Localizer["Budget"]} %") TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Width="10%" Format="P"></GridColumn>
+                            </GridColumns>
+                        </SfGrid>
+
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+    @code
+{
+        [Parameter]
+        public string Query { get; set; }
+        DateTime SDate = DateTime.Now, EDate = DateTime.Now;
+        int user, BranchID, AccountID, ID;
+        string FD, TD, FinYear, Name, Remarks,GridHeight = "500px";
+        public bool Isload = false;
+        SfGrid<BudgetReg> Grid { get; set; }
+        public IEnumerable<BudgetReg> dataSource { get; set; }
+        IList<BudgetReg> Stmt = new List<BudgetReg>();
+        public IList<string> Year = new List<string>();
+        public string? DecimalFormat { get; set; }
+        private Dictionary<string, object> ClearFilter = new Dictionary<string, object>()
+        {
+            { "title", "Clear Filter"}
+        };
+        protected override async Task OnInitializedAsync()
+        {
+            BranchID = await localStorage.GetItemAsync<int>("BranchID");
+            user = await localStorage.GetItemAsync<int>("UserID");
+            AccountID = await localStorage.GetItemAsync<int>("AccountID");
+            await FinancialDateService.InitializeDates();
+
+            if (user == 0)
+            {
+                string HomeUrl = "";
+                HomeUrl = await _UserRights.GetURl("Logout", AccountID);
+                uriHelper.NavigateTo(HomeUrl);
+            }
+            else
+            {
+                var dimension = await JsRuntime.InvokeAsync<WindowDimension>("getWindowDimensions");
+                GridHeight = (dimension.Height - 180).ToString() + "px";
+                // var result = await FinServ.GetScalar("Select Entryfrom from company where id =" + BranchID);
+                // result = "{Scalar:" + result + "}";
+                // var ob = JObject.Parse(result.ToString());
+                // var dt = ob["Scalar"]["Entryfrom"].ToString();
+                // SDate = Convert.ToDateTime(dt);
+                // FinancialDateTime financialDate = await FinServ.GetFinancialDateTimeAsync(BranchID);
+                // SDate = financialDate.startDate;
+                // EDate = financialDate.endDate;
+                Year = (await FinServ.GetFinYear()).ToList();
+                DecimalFormat = _GlobalServ.GlobalCurrencyFormat;
+                if (DecimalFormat == null || DecimalFormat == "")
+                {
+
+                    DecimalFormat = "0.00";
+                }
+                await base.OnInitializedAsync();
+            }
+            await InvokeAsync(StateHasChanged);
+        }
+        public async Task Search_Click()
+        {
+            Isload = true;
+            SDate = FinancialDateService.StartDate;
+            EDate = FinancialDateService.EndDate;
+            FD = SDate.Month.ToString("00") + "-" + SDate.Day.ToString("00") + "-" + SDate.Year;
+            TD = EDate.Month.ToString("00") + "-" + EDate.Day.ToString("00") + "-" + EDate.Year;
+            dataSource = (await _IAccStmt.ShowBudget(BranchID, FD.ToString(), TD.ToString(), FinYear)).ToList();
+            // foreach (var item in dataSource)
+            // {
+            //     if (item.AccountID == -1)
+            //     { item.AccountID = 0; }
+            //     if (item.ParentID == -1 || item.ParentID == 0)
+            //     { item.ParentID = null; }
+            // }
+            Stmt = dataSource.ToList();
+            Isload = false;
+            await InvokeAsync(StateHasChanged);
+        }
+
+
+       public async Task ExcelExport()
+        {
+            await this.Grid.ExportToExcelAsync();
+
+        }
+        public void ExportPdf()
+        {
+            PdfExportProperties PdfProperties = new PdfExportProperties();
+            PdfProperties.FileName = "BalanceSheets.pdf";
+            this.Grid.ExportToPdfAsync(PdfProperties);
+        }
+        public async Task Clear_Click()
+        {
+            await Grid!.SearchAsync("");
+            await Grid.ClearFilteringAsync();
+
+        }
+    }

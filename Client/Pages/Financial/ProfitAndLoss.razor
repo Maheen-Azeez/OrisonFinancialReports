@@ -1,0 +1,384 @@
+﻿@page "/PnL"
+@using OrisonMIS.Client.Services
+@using OrisonMIS.Shared.BoldReport
+@using OrisonMIS.Shared.Entities.Financial;
+@using Microsoft.AspNetCore.Components;
+@using Syncfusion.Blazor.Buttons;
+@using Syncfusion.Blazor.Grids;
+@using Syncfusion.Blazor.Inputs;
+@using Syncfusion.Blazor.DropDowns;
+@using Newtonsoft.Json;
+@using Newtonsoft.Json.Linq;
+@using Syncfusion.Blazor.TreeGrid;
+@using Syncfusion.Blazor.Calendars;
+@using Syncfusion.Blazor.Spinner;
+@using OrisonMIS.Shared.Entities.General;
+@using System.Dynamic
+@inject FinancialDateTimeService FinancialDateService
+@inject OrisonMIS.Client.Services.FinServices FinServ
+@inject OrisonMIS.Client.Services.UserRightsService _UserRights
+@inject GlobalService _GlobalServ
+@inject NavigationManager uriHelper
+@inject HttpClient http
+@inject IJSRuntime IJS
+@inject OrisonMIS.Client.Logics.Contract.Inventory.IInvAccounts _IInvAccounts
+@inject OrisonMIS.Client.Logics.Contract.BoldReport.IBoldReportManager _BoldReport
+@inject OrisonMIS.Client.Logics.Contract.General.ICompanyManager _ICompanyManager
+@inject OrisonMIS.Client.Logics.Contract.Financial.IPnL _IPnL
+@inject OrisonMIS.Client.Logics.Contract.Inventory.IInvAccountManager _InvAccountManager
+@inject OrisonMIS.Client.Logics.Contract.Financial.IItemMasterManager _ItemMasterManager
+@inject OrisonMIS.Client.Logics.Contract.Inventory.IInvItemsManager _InvItemsManager
+@inject Blazored.SessionStorage.ISessionStorageService localStorage
+@using Microsoft.Extensions.Localization
+@using OrisonMIS.Client.Resources
+@inject IStringLocalizer<SfResources> Localizer
+<head>
+    <link href="css/OrisonSyncfusionStyles.css" rel="stylesheet" />
+</head>
+
+<div>
+    <div class="box-card-shadow">
+
+        <div class="row">
+            <div class="col-sm-12" style="padding-bottom:7px;">
+                <div class="row" style="padding-top: 5px;">
+                    <div class="col-md-8">
+                        <SfButton @onclick="ExcelExport" IconCss="Icon excel" CssClass="e-btn" Content=@Localizer["Excel"] IsPrimary="false" />
+                        <SfButton @onclick="ExportPdf" IconCss="Icon pdf" CssClass="e-btn" Content=@Localizer["PDF"] IsPrimary="false" />
+
+                    </div>
+                    <div class="col-md-4" style="text-align:end">
+                        <label class="page-heading">@Localizer["Profit and Loss"]</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="box-card-shadow">
+
+        <div class="row">
+            <div class="col-sm-12" style="padding-bottom:8px;">
+                <div class="row">
+                    <div class="col-md-12">
+                        <SfDatePicker @bind-Value="@FinancialDateService.StartDate" Format="dd/MM/yyyy" title=@Localizer["From Date"] Width="120px" Placeholder=@Localizer["From Date"]></SfDatePicker>
+                        <SfDatePicker @bind-Value="@FinancialDateService.EndDate" Format="dd/MM/yyyy" title=@Localizer["To Date"] Width="120px" Placeholder=@Localizer["To Date"]></SfDatePicker>
+                        <SfMultiSelect TValue="string[]" TItem="ParentLevel" AllowFiltering="true" Placeholder=@Localizer["Level"] Width="180px" Mode="@VisualMode.CheckBox" DataSource="@levels" ShowSelectAll="@ShowSelectAllCheckBox" EnableSelectionOrder="@EnableSelectionOrders" ShowDropDownIcon="@EnableDropDownIcon" FilterBarPlaceholder="Search Level" PopupHeight="350px">
+                            <MultiSelectEvents TItem="ParentLevel" TValue="string[]" ValueChange="@ValueChangeHandlerLevels"></MultiSelectEvents>
+                            <MultiSelectFieldSettings Text="Level" Value="Level"></MultiSelectFieldSettings>
+                        </SfMultiSelect>
+                        <SfCheckBox @bind-Checked="@allBranches" Label=@Localizer["All Branches"]></SfCheckBox>
+                        <SfButton IconCss="Icon search" @onclick="@Search_Click" title=@Localizer["Search"] CssClass="widthset"></SfButton>
+                        <SfTextBox @ref="search" Input="OnInput" Placeholder=@Localizer["Global Search"] Width="250px" ShowClearButton="true" CssClass="e-btn2"></SfTextBox>
+                        <SfButton IconCss="Icon filter" CssClass="e-btn4" Content=" " @onclick="@Clear_Click" HtmlAttributes="@ClearFilter"></SfButton>
+
+                        @if (Isload)
+                        {
+                            <img src="gif/loading-waiting.gif" style="padding-left:2px; width: 20px; height: 20px;" />
+                        }
+                        
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="box-card-shadow">
+        <div class="col-md-12 col-sm-12">
+            <div class="row" style="padding-top:0px;">
+                <div class="table-responsive" style="position: relative; min-width: 300px ">
+                    @if (Stmt == null)
+                    {
+                        <p><em>No data...</em></p>
+                    }
+                    else
+                    {
+
+
+                        <SfGrid Height="@GridHeight" Width="100%"
+                                DataSource="Stmt"
+                                GridLines="@GridLine.Vertical"
+                                EnableHover="true" @ref="Grid"
+                                AllowPdfExport="true" AllowExcelExport="true"
+                                AllowResizing = "true"
+                                AllowPaging ="true"
+                                AllowFiltering="true"
+                                AllowSorting="true"
+                                RowHeight="25">
+                            <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel" ShowFilterBarStatus="true"></GridFilterSettings>
+                            <GridPageSettings PageSize="100"></GridPageSettings>
+                            <GridColumns>
+                                <GridColumn Field="@nameof(PnL.AccountCode)" HeaderText=@Localizer["Account Code"] Width="20%" TextAlign="TextAlign.Left" HeaderTextAlign="TextAlign.Center" Format="@DecimalFormat">
+                                </GridColumn>
+                                <GridColumn Field="@nameof(PnL.AccountName)" HeaderText=@Localizer["Account Name"] Width="60%" TextAlign="TextAlign.Left" HeaderTextAlign="TextAlign.Center" Format="@DecimalFormat">
+                                    <Template>
+                                        @{
+                                            var AccName = (context as PnL);
+                                            int? sc = AccName.ParentLevel - 1;
+                                            string space = "";
+                                            for (int i = 0; i < sc; i++)
+                                            {
+                                                space = space + "...";
+                                            }
+                                            var Name = space + AccName.AccountName;
+                                            @if ((AccName.ParentLevel == 1) || AccName.VoucherEntry == 0)
+                                            {
+                                                <span style="font-weight:bold">@Name</span>
+                                            }
+                                            else if (AccName.AccountName == "Net Profit/Loss" || AccName.AccountName == "Grand Total Expenditure" || AccName.AccountName == "Grand Total Revenue")
+                                            {
+                                                <span style="font-weight:bold;text-align:right">@Name</span>
+                                            }
+                                            else
+                                            {
+                                                <span>@Name</span>
+                                            }
+                                        }
+                                    </Template>
+                                </GridColumn>
+                                <GridColumn Field="@nameof(PnL.Amount)" HeaderText=@Localizer["Amount"] Width="20%" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Center" Format="@DecimalFormat">
+                                    <Template>
+                                        @{
+                                            var AccName = (context as PnL);
+                                            string Value = Convert.ToDecimal(AccName.Amount).ToString(@DecimalFormat);
+                                            @if ((AccName.ParentLevel == 0) || AccName.VoucherEntry == 0)
+                                            {
+                                                <span style="font-weight:bold">@Value</span>
+                                            }
+                                            else if (AccName.AccountName == "Net Profit/Loss" || AccName.AccountName == "Grand Total Expenditure" || AccName.AccountName == "Grand Total Revenue")
+                                            {
+                                                <span style="font-weight:bold">@Value</span>
+                                            }
+                                            else
+                                            {
+                                                <span>@Value</span>
+                                            }
+                                        }
+                                    </Template>
+                                </GridColumn>
+                            </GridColumns>
+                        </SfGrid>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+    @code
+{
+    [Parameter]
+    public string Query { get; set; }
+    DateTime SDate = DateTime.Now, EDate = DateTime.Now;
+    public int ID;
+    public string Name, Remarks, FD, TD, FinYear;
+    public bool Isload = false;
+    int user, BranchID, AccountID;
+    bool allBranches = false;
+
+    SfGrid<PnL> Grid { get; set; }
+    public IList<string> Year = new List<string>();
+    private Dictionary<string, object> ClearFilter = new Dictionary<string, object>()
+        {
+            { "title", "Clear Filter"}
+        };
+    SfTreeGrid<PnL> TreeGrid { get; set; }
+    public IEnumerable<PnL> dataSource { get; set; }
+    private IEnumerable<PnL> TreeGridData { get; set; }
+    IList<PnL> Stmt = new List<PnL>();
+
+    IList<ParentLevel> levels = new List<ParentLevel>();
+
+    private string GridHeight = "500px";
+    public string? DecimalFormat { get; set; }
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        BranchID = await localStorage.GetItemAsync<int>("BranchID");
+        user = await localStorage.GetItemAsync<int>("UserID");
+        AccountID = await localStorage.GetItemAsync<int>("AccountID");  
+        await FinancialDateService.InitializeDates();
+
+        if (user == 0)
+        {
+            string HomeUrl = "";
+            HomeUrl = await _UserRights.GetURl("Logout", AccountID);
+            uriHelper.NavigateTo(HomeUrl);
+        }
+        else
+        {
+            // var result = await FinServ.GetScalar("Select Entryfrom from company where id =" + BranchID);
+            // result = "{Scalar:" + result + "}";
+            // var ob = JObject.Parse(result.ToString());
+            // var dt = ob["Scalar"]["Entryfrom"].ToString();
+            // SDate = Convert.ToDateTime(dt);
+            // FinancialDateTime financialDate = await FinServ.GetFinancialDateTimeAsync(BranchID);
+            // SDate = financialDate.startDate;
+            // EDate = financialDate.endDate;
+            levels = (await _IInvAccounts.GetLevels()).ToList();
+            var dimension = await IJS.InvokeAsync<WindowDimension>("getWindowDimensions");
+            GridHeight = (dimension.Height - 180).ToString() + "px";
+            DecimalFormat = _GlobalServ.GlobalCurrencyFormat;
+            if (DecimalFormat == null || DecimalFormat == "")
+            {
+
+                DecimalFormat = "0.00";
+            }
+            await base.OnInitializedAsync();
+        }
+
+
+        await InvokeAsync(StateHasChanged);
+    }
+    public async Task Search_Click()
+    {
+        Isload = true;
+        SDate = FinancialDateService.StartDate;
+        EDate = FinancialDateService.EndDate;
+        FD = SDate.Month.ToString("00") + "-" + SDate.Day.ToString("00") + "-" + SDate.Year;
+        TD = EDate.Month.ToString("00") + "-" + EDate.Day.ToString("00") + "-" + EDate.Year;
+        dataSource = (await _IPnL.Show(allBranches == true ? 0 : BranchID, FD.ToString(), TD.ToString(), 1, "PnL")).ToList();
+        foreach (var item in dataSource)
+        {
+            if (item.ID == -1)
+            { item.ID = 0; }
+            if (item.ParentID == -1 || item.ParentID == 0)
+            { item.ParentID = null; }
+        }
+        if (selectedLevel != null)
+            filterLevelWise(selectedLevel);
+        else
+            Stmt = dataSource.OrderBy(x => x.PandLGroup).ThenBy(x => x.SortField).ToList();
+
+
+        Isload = false;
+        await InvokeAsync(StateHasChanged);
+    }
+    public async Task ExcelExport()
+    {
+        await this.Grid.ExportToExcelAsync();
+
+    }
+    public List<ExpandoObject> companyDetails = new List<ExpandoObject>();
+    public async Task ExportPdf()
+    {
+        try
+        {
+            Isload = true;
+            var data = await Grid.GetFilteredRecordsAsync();
+            var dataList = new List<object>();
+
+            if (data is IEnumerable<object> enumerableData)
+            {
+                foreach (var item in enumerableData)
+                {
+                    dataList.Add(item);
+                }
+            }
+            else
+            {
+                dataList.Add(data);
+            }
+            companyDetails = new List<ExpandoObject>();
+            companyDetails = await _ICompanyManager.GetCompanyDetails(BranchID);
+            DataSource dt = new DataSource
+                {
+                    Parameters = new List<JSReportParameter>
+                    {
+                        new JSReportParameter
+                        {
+                            Name = "DateFrom",
+                            Values = new List<string> { SDate.ToString() }
+                        },
+                        new JSReportParameter
+                        {
+                            Name = "DateUpto",
+                            Values = new List<string> { EDate.ToString() }
+                        }
+                    }
+                };
+            dt.DataSet1 = new List<ExpandoObject>();
+            dt.DataSet2 = new List<ExpandoObject>();
+            dt.ReportName = "ProfitAndLoss";
+            dt.DataSet1 = JsonConvert.DeserializeObject<List<ExpandoObject>>(JsonConvert.SerializeObject(dataList));
+            dt.DataSet2 = JsonConvert.DeserializeObject<List<ExpandoObject>>(JsonConvert.SerializeObject(companyDetails));
+            if (dt.ReportName != "")
+            {
+                var Result = await _BoldReport.GetReport(dt);
+                var filename = dt.ReportName + ".pdf";
+                await IJS.InvokeVoidAsync("jsSaveAsFile", filename, Convert.ToBase64String(Result.ToArray()));
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+        finally
+        {
+            Isload = false;
+        }
+
+    }
+    SfTextBox search;
+    public void OnInput(InputEventArgs args)
+    {
+        this.Grid.SearchAsync(args.Value);
+        this.StateHasChanged();
+    }
+    public string[] selectedLevel { get; set; }
+    private void ValueChangeHandlerLevels(MultiSelectChangeEventArgs<string[]> args)
+    {
+        try
+        {
+            if (selectedLevel != null)
+                Array.Clear(selectedLevel, 0, selectedLevel.Length);
+            selectedLevel = args.Value;
+            filterLevelWise(selectedLevel);
+            Grid.Refresh();
+        }
+        catch (Exception e)
+        {
+
+            throw e;
+        }
+
+    }
+
+    public void filterLevelWise(string[]? Value)
+    {
+       if (dataSource != null && dataSource.Count() > 0)
+        {
+            if (Value != null)
+                Stmt = dataSource.Where(x => Value.Contains(x.ParentLevel.ToString())).ToList();
+            else
+                Stmt = dataSource.ToList();
+        }
+        Stmt = Stmt.OrderBy(x => x.PandLGroup).ThenBy(x => x.SortField).ToList();
+    }
+    public bool ShowSelectAllCheckBox { get; set; } = true;
+    public bool EnableSelectionOrders { get; set; } = true;
+    public bool EnableDropDownIcon { get; set; } = true;
+    private bool CheckSelectAll { get; set; } = true;
+    private bool DropDownButton { get; set; } = true;
+    private bool SelectionReorder { get; set; } = true;
+    public void OnSelectAllChange(Syncfusion.Blazor.Buttons.ChangeEventArgs<bool> args)
+    {
+        this.ShowSelectAllCheckBox = args.Checked;
+    }
+    public void OnDropDownButtonChange(Syncfusion.Blazor.Buttons.ChangeEventArgs<bool> args)
+    {
+        this.EnableDropDownIcon = args.Checked;
+    }
+    public void OnSeletionReorder(Syncfusion.Blazor.Buttons.ChangeEventArgs<bool> args)
+    {
+        this.EnableSelectionOrders = args.Checked;
+    }
+    public async Task Clear_Click()
+    {
+        await Grid!.SearchAsync("");
+        await Grid.ClearFilteringAsync();
+
+    }
+}

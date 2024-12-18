@@ -1,0 +1,331 @@
+﻿@page "/MonthlyProfit"
+@using OrisonMIS.Client.Services
+@using OrisonMIS.Shared.BoldReport
+@using OrisonMIS.Shared.Entities.Financial;
+@using Microsoft.AspNetCore.Components;
+@using OrisonMIS.Shared.Entities.General
+@using Syncfusion.Blazor.Buttons;
+@using Syncfusion.Blazor.Grids;
+@using Syncfusion.Blazor.Calendars;
+@using Syncfusion.Blazor.Spinner;
+@using System.Data;
+@using Syncfusion.Blazor.Data
+@using Newtonsoft.Json;
+@using Newtonsoft.Json.Linq;
+@using System.Dynamic
+@inject NavigationManager uriHelper
+@inject HttpClient http
+@inject OrisonMIS.Client.Services.FinServices FinServ
+@inject OrisonMIS.Client.Services.UserRightsService _UserRights
+@inject GlobalService _GlobalServ
+@inject FinancialDateTimeService FinancialDateService
+
+@inject OrisonMIS.Client.Logics.Contract.Financial.IAccStmt _IAccStmt
+@inject OrisonMIS.Client.Logics.Contract.Inventory.IInvAccounts _IInvAccounts
+@inject OrisonMIS.Client.Logics.Contract.Inventory.IInvAccountManager _InvAccountManager
+@inject OrisonMIS.Client.Logics.Contract.Financial.IItemMasterManager _ItemMasterManager
+@inject OrisonMIS.Client.Logics.Contract.Inventory.IInvItemsManager _InvItemsManager
+@inject Blazored.SessionStorage.ISessionStorageService localStorage
+@inject OrisonMIS.Client.Logics.Contract.BoldReport.IBoldReportManager _BoldReport
+@inject OrisonMIS.Client.Logics.Contract.General.ICompanyManager _ICompanyManager
+@inject IJSRuntime IJS
+@using Microsoft.Extensions.Localization
+@using OrisonMIS.Client.Resources
+@inject IStringLocalizer<SfResources> Localizer
+
+<head>
+    <link href="css/OrisonSyncfusionStyles.css" rel="stylesheet" />
+</head>
+
+<div>
+    <div class="box-card-shadow">
+
+        <div class="row">
+            <div class="col-sm-12" style="padding-bottom:7px;">
+                <div class="row" style="padding-top: 5px;">
+                    <div class="col-md-8">
+                        <SfButton @onclick="ExcelExport" IconCss="Icon excel" CssClass="e-btn" Content=@Localizer["Excel"] IsPrimary="false" />
+                        <SfButton @onclick="ExportPdf" IconCss="Icon pdf" CssClass="e-btn" Content=@Localizer["PDF"] IsPrimary="false" />
+                    </div>
+                    <div class="col-md-4" style="text-align:end">
+                        <label class="page-heading">@Localizer["Monthly Profit"]</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="box-card-shadow">
+
+        <div class="row">
+            <div class="col-sm-12" style="padding-bottom:7px;">
+                <div class="row">
+                    <div class="col-md-12">
+                        <SfDatePicker @bind-Value="@FinancialDateService.StartDate" Format="dd/MM/yyyy" title=@Localizer["From Date"] Width="140px" Placeholder=@Localizer["From Date"]></SfDatePicker>
+                        <SfDatePicker @bind-Value="@FinancialDateService.EndDate" Format="dd/MM/yyyy" title=@Localizer["To Date"] Width="140px" Placeholder=@Localizer["To Date"]></SfDatePicker>
+
+                        <SfButton IconCss="Icon search" @onclick="@Search_Click" title=@Localizer["Search"] CssClass="widthset"></SfButton>
+                        <SfButton IconCss="Icon filter" CssClass="e-btn4" Content=" " @onclick="@Clear_Click" HtmlAttributes="@ClearFilter"></SfButton>
+
+                        @if (Isload)
+                        {
+                            <img src="gif/loading-waiting.gif" style="padding-left:2px; width: 20px; height: 20px;" />
+                        }
+
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="box-card-shadow">
+        <div class="col-md-12 col-sm-12">
+            <div class="row" style="padding-top:0px;">
+                <div class="table-responsive" style="position: relative; min-height:600px; min-width: 300px ">
+                    @if (Stmt == null)
+                    {
+                        <p><em>No data...</em></p>
+                    }
+                    else
+                    {
+                        <SfGrid DataSource="Stmt"
+                                GridLines="@GridLine.Vertical"
+                                EnableHover="true"
+                                @ref="Grid"
+                                Height="550"
+                                Width="100%"
+                                AllowFiltering = "true"
+                                AllowPdfExport="true"
+                                AllowSorting="true"
+                                AllowResizing="true"
+                                AllowExcelExport="true"
+                                RowHeight="25">
+                            <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel" ShowFilterBarStatus="true"></GridFilterSettings>
+
+                            <GridColumns>
+                                <GridColumn HeaderText=@Localizer["Description"] Width="150" HeaderTextAlign="TextAlign.Left">
+                                    <Template>
+                                        @{
+                                            var t = context as MonthlyProfit;
+                                            string desc = Convert.ToDateTime(t.FromDate).ToString("MMM yyyy");
+                                            <div>@desc</div>
+                                        }
+                                    </Template>
+                                </GridColumn>
+                                <GridColumn Field="@nameof(MonthlyProfit.DirectRevenue)" HeaderText=@Localizer["Direct Revenue"] Width="100" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Format="@DecimalFormat">
+                                </GridColumn>
+                                <GridColumn Field="@nameof(MonthlyProfit.DirectExpense)" HeaderText=@Localizer["Direct Expense"] Width="100" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Format="@DecimalFormat">
+                                </GridColumn>
+                                <GridColumn Field="@nameof(MonthlyProfit.GP)" HeaderText=@Localizer["Gross Profit"] Width="100" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Format="@DecimalFormat">
+                                    <Template>
+                                        @{
+                                            var t = context as MonthlyProfit;
+                                            if (t != null)
+                                            {
+                                                string GP = (Convert.ToDecimal(t.DirectRevenue) - Convert.ToDecimal(t.DirectExpense)).ToString(@DecimalFormat);
+                                                t.GP = Convert.ToDecimal(GP);
+                                                <div>@GP</div>
+                                            }
+                                        }
+                                        </Template>
+                                </GridColumn>
+                                <GridColumn Field="@nameof(MonthlyProfit.RGP)" HeaderText=@Localizer["RGP"] Width="100" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Format="@DecimalFormat">
+                                    <Template>
+                                        @{
+                                            var t = context as MonthlyProfit;
+
+                                            var RGP = @CalculateRGP(context as MonthlyProfit);
+                                            var v = Convert.ToDecimal(RGP.Result);
+                                            t.RGP = v;
+                                            <div>@v.ToString(@DecimalFormat)</div>
+                                        }
+                                    </Template>
+                                </GridColumn>
+                                <GridColumn Field="@nameof(MonthlyProfit.IndirectRevenue)" HeaderText=@Localizer["Indirect Revenue"] Width="100" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Format="@DecimalFormat">
+                                </GridColumn>
+                                <GridColumn Field="@nameof(MonthlyProfit.IndirectExpense)" HeaderText=@Localizer["Indirect Expense"] Width="100" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Format="@DecimalFormat">
+                                </GridColumn>
+                                <GridColumn Field="@nameof(MonthlyProfit.NP)" HeaderText=@Localizer["Net Profit"] Width="100" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Format="@DecimalFormat">
+                                    <Template>
+                                        @{
+                                            var t = context as MonthlyProfit;
+                                            if (t != null)
+                                            {
+                                                decimal GP = Convert.ToDecimal(t.DirectRevenue) - Convert.ToDecimal(t.DirectExpense);
+                                                string NP = ((GP + Convert.ToDecimal(t.IndirectRevenue)) - Convert.ToDecimal(t.IndirectExpense)).ToString(@DecimalFormat);
+                                                t.NP = Convert.ToDecimal(NP);
+                                                <div>@NP</div>
+                                            }
+                                        }
+                                        </Template>
+                                </GridColumn>
+                                <GridColumn Field="@nameof(MonthlyProfit.RNP)" HeaderText=@Localizer["RNP"] Width="100" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left" Format="@DecimalFormat">
+                                    <Template>
+                                        @{
+                                            var t = context as MonthlyProfit;
+                                            var RNP = @CalculateRNP(context as MonthlyProfit);
+                                            var v = Convert.ToDecimal(RNP.Result);
+                                            t.RNP = v;
+                                            <div>@v.ToString(@DecimalFormat)</div>
+                                        }
+                                    </Template>
+                                </GridColumn>
+                            </GridColumns>
+                        </SfGrid>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+    @code
+{
+        [Parameter]
+        public string Query { get; set; }
+        int user, BranchID, AccountID, ID;
+        public string Name, Remarks, FD, TD;
+        public bool Isload = false;
+        DateTime SDate = DateTime.Now, EDate = DateTime.Now;
+        SfGrid<MonthlyProfit> Grid { get; set; }
+        public IList<MonthlyProfit> dataSource { get; set; }
+        IList<MonthlyProfit> Stmt = new List<MonthlyProfit>();
+        public Query LocalDataQueryMemberItem { get; set; } = new Query().Take(10);
+        public string? DecimalFormat { get; set; }
+        private Dictionary<string, object> ClearFilter = new Dictionary<string, object>()
+        {
+            { "title", "Clear Filter"}
+        };
+        protected override async Task OnInitializedAsync()
+        {
+            BranchID = await localStorage.GetItemAsync<int>("BranchID");
+            user = await localStorage.GetItemAsync<int>("UserID");
+            AccountID = await localStorage.GetItemAsync<int>("AccountID");
+        await FinancialDateService.InitializeDates();
+
+            if (user == 0)
+            {
+                string HomeUrl = "";
+                HomeUrl = await _UserRights.GetURl("Logout", AccountID);
+                uriHelper.NavigateTo(HomeUrl);
+            }
+            else
+            {
+                // var result = await FinServ.GetScalar("Select Entryfrom from company where id =" + BranchID);
+                // result = "{Scalar:" + result + "}";
+                // var ob = JObject.Parse(result.ToString());
+                // var dt = ob["Scalar"]["Entryfrom"].ToString();
+                // SDate = Convert.ToDateTime(dt);
+                // FinancialDateTime financialDate = await FinServ.GetFinancialDateTimeAsync(BranchID);
+                // SDate = financialDate.startDate;
+                // EDate = financialDate.endDate;
+                DecimalFormat = _GlobalServ.GlobalCurrencyFormat;
+                if (DecimalFormat == null || DecimalFormat == "")
+                {
+
+                    DecimalFormat = "0.00";
+                }
+            }
+            await InvokeAsync(StateHasChanged);
+        }
+        public async Task Search_Click()
+        {
+            Isload = true;
+            SDate = FinancialDateService.StartDate;
+            EDate = FinancialDateService.EndDate;
+            FD = SDate.Month.ToString("00") + "-" + SDate.Day.ToString("00") + "-" + SDate.Year;
+            TD = EDate.Month.ToString("00") + "-" + EDate.Day.ToString("00") + "-" + EDate.Year;
+            dataSource = (await _IAccStmt.ShowProfit(BranchID, FD.ToString(), TD.ToString())).ToList();
+            Stmt = dataSource.ToList();
+            Isload = false;
+            await InvokeAsync(StateHasChanged);
+        }
+
+
+
+        public async Task<decimal?> CalculateRGP(MonthlyProfit val)
+        {
+            var index = dataSource.IndexOf(val);
+            var total = dataSource.Skip(0).Take(index + 1).Select(x => x.GP).Sum();
+            return total;
+        }
+        public async Task<decimal?> CalculateRNP(MonthlyProfit val)
+        {
+            var index = dataSource.IndexOf(val);
+            var total = dataSource.Skip(0).Take(index + 1).Select(x => x.NP).Sum();
+            return total;
+        }
+        public async Task ExcelExport()
+        {
+            await this.Grid.ExportToExcelAsync();
+
+        }
+        public List<ExpandoObject> companyDetails = new List<ExpandoObject>();
+
+        public async Task ExportPdf()
+        {
+            try
+            {
+                Isload = true;
+                var data = await Grid.GetFilteredRecordsAsync();
+                var dataList = new List<object>();
+
+                if (data is IEnumerable<object> enumerableData)
+                {
+                    foreach (var item in enumerableData)
+                    {
+                        dataList.Add(item);
+                    }
+                }
+                else
+                {
+                    dataList.Add(data);
+                }
+                companyDetails = new List<ExpandoObject>();
+                companyDetails = await _ICompanyManager.GetCompanyDetails(BranchID);
+                DataSource dt = new DataSource
+                {
+                    Parameters = new List<JSReportParameter>
+                    {
+                        new JSReportParameter
+                        {
+                            Name = "DateFrom",
+                            Values = new List<string> { SDate.ToString() }
+                        },
+                        new JSReportParameter
+                        {
+                            Name = "DateUpto",
+                            Values = new List<string> { EDate.ToString() }
+                        }
+                    }
+                };
+                dt.DataSet1 = new List<ExpandoObject>();
+                dt.DataSet2 = new List<ExpandoObject>();
+                dt.ReportName = "MonthlyProfit";
+                dt.DataSet1 = JsonConvert.DeserializeObject<List<ExpandoObject>>(JsonConvert.SerializeObject(dataList));
+                dt.DataSet2 = JsonConvert.DeserializeObject<List<ExpandoObject>>(JsonConvert.SerializeObject(companyDetails));
+                if (dt.ReportName != "")
+                {
+                    var Result = await _BoldReport.GetReport(dt);
+                    var filename = dt.ReportName + ".pdf";
+                await IJS.InvokeVoidAsync("jsSaveAsFile", filename, Convert.ToBase64String(Result.ToArray()));
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+            finally
+            {
+                Isload = false;
+            }
+
+        }
+        public async Task Clear_Click()
+        {
+            await Grid!.SearchAsync("");
+            await Grid.ClearFilteringAsync();
+
+        }
+    }

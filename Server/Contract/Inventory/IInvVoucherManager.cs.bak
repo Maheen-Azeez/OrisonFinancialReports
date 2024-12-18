@@ -1,0 +1,18 @@
+﻿using OrisonMISAPI.Entities.Inventory;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq;
+using System.Threading.Tasks;
+
+namespace OrisonMISAPI.Contracts.Inventory
+{
+   public interface IInvVoucherManager  
+    {
+        public Task<dtInvVoucher> GetVoucher(long VId);
+        Task<long> CreateVoucher(dtInvVoucher InvVoucher, IDbConnection db, IDbTransaction tran);
+        void UpdateVoucher(dtInvVoucher InvVoucher, IDbConnection db, IDbTransaction tran);
+        public void CancelVoucher(long vID);
+        public void DeleteVoucher(long VId);
+    }
+}

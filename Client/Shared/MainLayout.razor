@@ -1,0 +1,824 @@
+﻿@inherits LayoutComponentBase
+@using OrisonMIS.Client.Pages.Tools
+@using OrisonMIS.Client.Services
+@using Syncfusion.Blazor.Navigations
+@using Syncfusion.Blazor.Buttons
+@using Syncfusion.Blazor.Popups
+@using Syncfusion.Blazor.Notifications
+@using OrisonMIS.Shared.Entities.General;
+@using Newtonsoft.Json;
+@using Syncfusion.Blazor.DropDowns
+@inject IConfiguration IConfig
+@inject CacheVersionService VersionServ
+@inject NavigationManager uriHelper
+@inject OrisonMIS.Client.Services.UserRightsService _UserRights
+@inject OrisonMIS.Client.Services.TaxInvoiceService _taxServ
+@inject OrisonMIS.Client.Logics.Contract.General.IUserLoginManager _IUserLoginManager
+@inject OrisonMIS.Client.Logics.Contract.General.ICompanyManager _ICompanyManager
+@inject Blazored.SessionStorage.ISessionStorageService SessionStorage
+@inject OrisonMIS.Client.Services.GlobalService globalService
+@inject FinancialDateTimeService FinancialDateService
+
+@inject OrisonMIS.Client.Logics.Contract.Inventory.IInvAccounts _IInvAccounts
+@inject IJSRuntime JsRuntime
+@inject HttpClient http
+@using Microsoft.Extensions.Localization
+@using OrisonMIS.Client.Resources
+@inject OrisonMIS.Client.Services.FinServices FinServ
+
+@inject IStringLocalizer<SfResources> Localizer
+
+
+<head>
+    <link href="css/MainLayout.css" rel="stylesheet" />
+    <style>
+        #wrapper .main-content {
+            min-height: @DeviceHeight;
+            overflow-y: visible;
+            background-color: #f2f2f280;
+        }
+
+        .w3-wrapper {
+            color: #ffffff;
+            text-decoration: none;
+            font-size: 15px;
+            position: relative;
+            padding: 11px 7px 15px 7px;
+            display: block;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+            box-sizing: border-box;
+            height: 54px;
+            width: 38px;
+        }
+
+        .Ar {
+            background-image: url("./images/Arabic.png");
+        }
+
+        .En {
+            background-image: url("./images/English.png");
+        }
+
+        .footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            padding: 10px;
+            padding-left: 100px;
+            text-align: center;
+        }
+    </style>
+    <style>
+        div.update-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            margin-right: 8px;
+            background-color: #fc9003;
+            border-radius: 50%;
+            position: relative;
+        }
+
+        span.blinkUpdate {
+            display: block;
+            width: 8px;
+            height: 8px;
+            background-color: #fc9003;
+            opacity: 0.7;
+            border-radius: 50%;
+            animation: blink 1s linear infinite;
+        }
+
+        @@keyframes blink {
+            100% {
+                transform: scale(2, 2);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+
+<CascadingValue Value="this">
+    <div id="wrapper">
+        @if (btnFullScreen == false)
+        {
+            <!--header-section  declaration -->
+            <div style="border-bottom: solid 1px #C9CCD4;">
+                <SfToolbar Height="65px" EnableRtl="@Lang">
+                    <ToolbarEvents Clicked="@Toggle"></ToolbarEvents>
+                    <ToolbarItems>
+                        <ToolbarItem PrefixIcon="fa fa-bars" TooltipText="Menu">
+                            <Template>
+                                <div class="e-folder">
+                                    <img src="Images/IcMenu.png" style="width: 25px; height: 25px;" alt="Orison" class="avatar-xxl mb-1">
+                                </div>
+                            </Template>
+                        </ToolbarItem>
+                        @if (Mobile != true)
+                        {
+                            <ToolbarItem Align="@ItemAlign.Left">
+                                <Template>
+                                    <div class="e-folder">
+                                        <img src="Images/BackgroundOrisonLogo.png" style="width: 38px; height: 35px;" alt="Orison" class="avatar-xxl mb-1">
+                                    </div>
+                                </Template>
+                            </ToolbarItem>
+                            <ToolbarItem Align="@ItemAlign.Left">
+                                <Template>
+                                    <div class="e-folder">
+                                        <div style="color: #4758A8; font-family: inherit; font-size: 14px; font-weight: 500;">@Localizer["Orison Financial Reports"]</div>
+                                        @*                                     <div style="color: #4758A8; font-family: inherit; font-size: 11px;">V1.0.000</div>
+                                *@
+                                        <div>
+                                            @if (VersionUpdate)
+                                            {
+                                                <a title="Version update" @onclick="Reload" style="text-decoration:none;cursor:pointer;">
+                                                    <div class="update-indicator">
+                                                        <span class="blinkUpdate"></span>
+                                                    </div>
+                                                    <span style="color: #4758A8; font-family: inherit; font-size: 11px;">V @CacheVersion</span>
+                                                </a>
+                                            }
+                                            else
+                                            {
+                                                <a title="Latest Version" style="text-decoration:none;cursor:pointer;">
+                                                    <span style="color: #4758A8; font-family: inherit; font-size: 11px;">V @CacheVersion</span>
+                                                </a>
+                                            }
+                                        </div>
+                                    </div>
+                                </Template>
+                            </ToolbarItem>
+                        }
+                        <ToolbarItem  Align="@ItemAlign.Center">
+                            <Template>
+                                <div class="e-folder">
+                                    <img src="@CompanyLogo" style="width: 100%; height: 40px;" alt="Orison" class="avatar-xxl mb-1">
+                                </div>
+                            </Template>
+                        </ToolbarItem>
+                        <ToolbarItem Align="@ItemAlign.Right">
+                            <Template>
+                                @* <div class="e-folder">
+                            <CultureSwitcher />
+                            </div> *@
+                                <div>
+                                    <SfButton IconCss="@IconClass" CssClass="e-outline" OnClick="@LanguageChange"></SfButton>
+                                </div>
+                            </Template>
+                        </ToolbarItem>
+                        <ToolbarItem Align="@ItemAlign.Right">
+                            <Template>
+                                <div>
+                                    <a @onclick="@Home_Click" title=Home>
+                                        <img src="Images/iconshome.png" style="width:27px;height:27px;" alt="Home" class="avatar-xxl mb-1">
+                                    </a>
+                                </div>
+                            </Template>
+                        </ToolbarItem>
+
+                        <ToolbarItem Align="@ItemAlign.Right">
+                            <Template>
+                                <div>
+                                    <div class="dropdown">
+                                        <a class="nav-link d-none d-sm-inline-block" data-bs-toggle="dropdown">
+                                            <span style=" vertical-align: super; color: #404E67;"> @UserName</span>
+                                        </a>
+                                        <div class="dropdown-content" style="text-align:left;">
+                                            <a class="dropdown-item"><i class="oi oi-person"></i>Profile</a>
+                                            <a class="dropdown-item" @onclick="LogOutClick"><i class="oi oi-account-logout"></i>Log out</a>
+                                            <a class="dropdown-item" @onclick="Reload"><i class="oi oi-reload"></i> Reload</a>
+                                            @if (VersionUpdate)
+                                            {
+                                                <a class="dropdown-item" @onclick="Reload">
+                                                    <div class="update-indicator">
+                                                        <span class="blinkUpdate"></span>
+                                                    </div>
+                                                </a>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </Template>
+                        </ToolbarItem>
+                        <ToolbarItem CssClass="e-custom" Align="@ItemAlign.Right">
+                            <Template>
+                                <div class="image-container">
+                                    @*<img height="20" class="img-round" src="img/avatars/avatar.jpg" alt="Orison Admin" />*@
+                                    <img height="20" class="img-round" src="Images/user.png" alt="Orison Admin" />
+                                </div>
+                            </Template>
+                        </ToolbarItem>
+                    </ToolbarItems>
+                </SfToolbar>
+            </div>
+            <!-- end of header-section -->
+            <!-- sidebar element declaration -->
+            <SfSidebar Animate="false" EnableGestures="false" Position="@Position" EnablePersistence="true" EnableRtl="@Lang" HtmlAttributes="@HtmlAttribute" Width="230px" Target=".main-content" @ref="Sidebar" MediaQuery="(min-width:600px)" @bind-IsOpen="SidebarToggle">
+                <ChildContent>
+                    <div class="main-menu">
+                        <div class="pt-3" style="overflow-x:hidden;">
+                            <SfTreeView CssClass="main-treeview" @ref="TreeView" EnableRtl="@Lang" ExpandOn="ExpandAction.Click" TValue="TreeData">
+                                <TreeViewEvents TValue="TreeData" NodeClicked="OnSelect"></TreeViewEvents>
+                                <TreeViewFieldsSettings Id="nodeId" Expanded="expanded" Text="nodeText" IconCss="iconCss" DataSource="treedata" HasChildren="hasChild" ParentID="pid">
+                                </TreeViewFieldsSettings>
+                            </SfTreeView>
+                        </div>
+                    </div>
+                </ChildContent>
+            </SfSidebar>
+        }
+
+        <SfSpeedDial Target="#target" title="Tools" ItemClicked="ItemEventClick" Position="Syncfusion.Blazor.Buttons.FabPosition.BottomLeft" Mode="SpeedDialMode.Linear" OpenIconCss="speeddial-icons fa fa-cogs">
+            <SpeedDialRadialSettings OffSet="110px" />
+            <SpeedDialItems>
+                <SpeedDialItem Title="@titleFullScreen" ID="1" IconCss="speeddial-icons fa fa-arrows-alt" />
+                <SpeedDialItem Title="@titleClipboard" ID="2" IconCss="speeddial-icons fa fa-clipboard" />
+                <SpeedDialItem Title="@titleTab" ID="3" IconCss="speeddial-icons fa fa-external-link " />
+                <SpeedDialItem Title="Calculator" ID="4" IconCss="speeddial-icons fa fa-calculator" />
+            </SpeedDialItems>
+        </SfSpeedDial>
+        <SfDialog Width="277px" CloseOnEscape="true" ShowCloseIcon="true" AllowDragging="true" IsModal="false" Height="497px" @bind-Visible="CalculatorToggle">
+            <DialogTemplates>
+                <Header>
+                    <div style="text-align:center;">
+                        <span>Calculator</span>
+                    </div>
+                </Header>
+                <Content>
+                    <div style="text-align:center;">
+                        <Calculator></Calculator>
+                    </div>
+                </Content>
+            </DialogTemplates>
+            <DialogPositionData X="@Xvalue" Y="@Yvalue"></DialogPositionData>
+        </SfDialog>        <!-- end of sidebar element -->
+        <!-- main-content declaration -->
+        <div class="main-content" id="main-text">
+            <div class="sidebar-content">
+                <div style="height:@DeviceHeight;overflow-y:auto;overflow-x:hidden;">
+                    @Body
+                </div>
+            </div>
+        </div>
+        <!--end main-content declaration -->
+    </div>
+</CascadingValue>
+
+<div class="col-lg-12 control-section toast-default-section">
+    <SfToast ID="toast_type" @ref="ToastObj">
+        <ToastPosition X="@ToastPosition"></ToastPosition>
+    </SfToast>
+</div>
+
+@code {
+    private string titleFullScreen = "FullScreen";
+    private string Xvalue = "right";
+    private string Yvalue = "center";
+    private string ToastPosition = "Right";
+    private string titleClipboard = "Enable Clipboard";
+    private string titleTab = "New Tab";
+    private string UserName = string.Empty;
+    private string ErrorSaving = string.Empty;
+    private string HomeUrl = string.Empty;
+    private string DeviceHeight = string.Empty;
+    private string LogoutUrl = string.Empty;
+    private string CompanyLogo = string.Empty;
+    private string ErrorContent = string.Empty;
+    private string? CacheVersion;
+    private string Category = string.Empty;
+    private string ClipboardValue = "none";
+
+    private decimal? MobileWidth;
+
+    private bool expanded = true;
+    private bool CalculatorToggle;
+    private bool btnFullScreen;
+    private bool PopupError;
+    private bool SfTreeView;
+    private bool Mobile;
+    private bool SidebarToggle;
+    private bool ConfirmDlgVisible;
+    private bool btnClipboard;
+    private bool login;
+    private bool VersionUpdate;
+
+    SfTreeView<TreeData> TreeView;
+    SfSidebar Sidebar;
+    SfToast ToastObj;
+
+    SidebarPosition Position { get; set; } = SidebarPosition.Left;
+    ExpandAction Expand = ExpandAction.Click;
+
+    public int AccountID { get; set; }
+    public int UserID { get; set; }
+    public int BranchID { get; set; }
+
+    IEnumerable<UserLogin> _UserLogin = new List<UserLogin>();
+    IEnumerable<MenuMasterData> objMenu = new List<MenuMasterData>();
+
+    private List<TreeData> treedata = new List<TreeData>();
+
+
+    private Dictionary<string, object> HtmlAttribute = new Dictionary<string, object>() { { "class", "sidebar-treeview" } };
+    private Dictionary<string, string> MenuRoutes;
+
+    private List<ToastModel> Toast = new List<ToastModel>
+    {
+        new ToastModel{ Title = "Warning!", Content="There was a problem with your network connection.", CssClass="e-toast-warning", Icon="e-warning toast-icons" },
+        new ToastModel{ Title = "Success!", Content="Your message has been sent successfully.", CssClass="e-toast-success", Icon="e-success toast-icons" },
+        new ToastModel{ Title = "Error!", Content="Access Denied.", CssClass="e-toast-danger", Icon="fa fa-times-circle-o" },
+        new ToastModel{ Title = "Information!", Content="Please read the comments carefully.", CssClass="e-toast-info", Icon="e-info toast-icons" }
+    };
+
+    public void Toggle(ClickEventArgs args)
+    {
+        if (args.Item.TooltipText == "Menu")
+        {
+            SidebarToggle = !SidebarToggle;
+        }
+    }
+
+    public async Task LogOutClick()
+    {
+        object logouturl = await _UserRights.GetURl("Logout", AccountID);
+        uriHelper.NavigateTo(logouturl.ToString());
+    }
+
+    public async Task Home_Click()
+    {
+        HomeUrl = await _UserRights.GetURl("Home", AccountID);
+        await SessionStorage.ClearAsync();
+        uriHelper.NavigateTo(HomeUrl);
+    }
+
+    public class TreeData
+    {
+        public string nodeId { get; set; }
+        public string nodeText { get; set; }
+        public string iconCss { get; set; }
+        public bool hasChild { get; set; }
+        public string pid { get; set; }
+        public bool expanded { get; set; }
+    }
+
+    public class Company
+    {
+        public string SchoolLogo { get; set; }
+    }
+
+    public class Logopath
+    {
+        public string LogoPath { get; set; }
+    }
+
+    public class WindowDimension
+    {
+        public int Width { get; set; }
+        public int Height { get; set; }
+    }
+
+    private async Task InitializeMenuRoutes()
+    {
+        MenuRoutes = new Dictionary<string, string>
+        {
+            { Localizer["Dashboard"], "Financedashboard" },
+            { Localizer["Account Statement"], "StatementDetails" },
+            { Localizer["Billwise Statement"], "Billwise" },
+            { Localizer["Consolidated Report"], "Consolidated" },
+            { Localizer["Consolidated Aging"], "ConsolidatedAging" },
+            { Localizer["Transaction Register"], "TransactionRegister" },
+            { Localizer["Consolidated Monthwise"], "ConsolidatedMonthwise" },
+            { Localizer["Fund Flow"], "FundFlow" },
+            { Localizer["Trial Balance"], "TrialBalance" },
+            { Localizer["Trial Balance Detailed"], "TrialBalanceDetailed" },
+            { Localizer["Profit and Loss"], "PnL" },
+            { Localizer["Balance Sheet"], "BalanceSheets" },
+            { Localizer["Financial Register"], "FinancialRegister" },
+            { Localizer["Registers"], "Registers" },
+            { Localizer["Monthly Profit"], "MonthlyProfit" },
+            { Localizer["PDC Reports"], "PDCReport" },
+            { Localizer["Bank Details"], "BankRegister" },
+            { Localizer["Budget Register"], "BudgetRegister" },
+            { Localizer["Invoice-Wise"], "InvoiceWiseSales" },
+            { Localizer["Month-Wise"], "MonthwiseSalesManWise" },
+            { Localizer["Sales Analysis"], "SalesAnalysis" },
+            { Localizer["VatReports"], "VatReports" },
+            { Localizer["Stock Register"], "StockRegister" },
+            { Localizer["Inventory Register"], "InventoryRegister" },
+        };
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await InitializeMenuRoutes();
+            base.OnInitialized();
+            await VersionChecker();
+
+            UserID = await SessionStorage.GetItemAsync<int>("UserID");
+            UserName = await SessionStorage.GetItemAsync<string>("Name");
+            AccountID = await SessionStorage.GetItemAsync<int>("AccountID");
+            BranchID = await SessionStorage.GetItemAsync<int>("BranchID");
+            Category = await SessionStorage.GetItemAsync<string>("Category");
+
+            var accountListTask = _IInvAccounts.GetAccounts("All");
+            var userLoginTask = _IUserLoginManager.GetUserDataAllBranches(UserID);
+            var homeUrlTask = _UserRights.GetURl("Home", 0);
+            var logoutUrlTask = _UserRights.GetURl("Logout", 0);
+            var currency = globalService.GetCurrencyMaster(BranchID);
+            var financialDateTimeTask = FinServ.GetFinancialDateTimeAsync(BranchID);
+            var logo = _ICompanyManager.getLogo(BranchID);
+            var logoUrl = _ICompanyManager.getLogoUrl();
+
+
+            //Device Settings
+            var dimension = await JsRuntime.InvokeAsync<WindowDimension>("getWindowDimensions");
+            DeviceHeight = dimension.Height - 80 + "px";
+            MobileWidth = dimension.Width;
+            await SessionStorage.SetItemAsync("MobileWidth", MobileWidth);
+            if (MobileWidth < 600)
+                Mobile = true;
+            else
+                Mobile = false;
+            //Device Settings
+
+
+            // Localization Settings
+            string Language = await SessionStorage.GetItemAsync<string>("language");
+            if (Language == null || Language == "en-US")
+            {
+                await JsRuntime.InvokeVoidAsync("addCss", "LTR");
+                Position = SidebarPosition.Left;
+                Lang = false;
+            }
+            else
+            {
+                await JsRuntime.InvokeVoidAsync("addCss", "RTL");
+                Position = SidebarPosition.Right;
+                Lang = true;
+            }
+            //Localization Settings
+
+            treedata.Add(new TreeData { nodeId = "01", nodeText = @Localizer["Dashboard"], iconCss = "fa fa-newspaper-o" });
+
+            //Financial
+            treedata.Add(new TreeData { nodeId = "02", nodeText = @Localizer["Financial"], iconCss = "fa fa-file-text-o", hasChild = true, expanded  = true});
+            treedata.Add(new TreeData { nodeId = "02-01", nodeText = @Localizer["Statements"], iconCss = "fa fa-th", pid = "02", hasChild = true  });
+            treedata.Add(new TreeData { nodeId = "02-01-01", nodeText = @Localizer["Account Statement"], iconCss = "fa fa-th-list", pid = "02-01" });
+            treedata.Add(new TreeData { nodeId = "02-01-02", nodeText = @Localizer["Billwise Statement"], iconCss = "fa fa-th-list", pid = "02-01" });
+            treedata.Add(new TreeData { nodeId = "02-02", nodeText = @Localizer["Fund Flow"], iconCss = "fa fa-retweet", pid ="02" });
+            treedata.Add(new TreeData { nodeId = "02-03", nodeText = @Localizer["Consolidated"], iconCss = "fa fa-server", pid = "02", hasChild = true});
+            treedata.Add(new TreeData { nodeId = "02-03-01", nodeText = @Localizer["Consolidated Report"], iconCss = "fa fa-list-alt", pid = "02-03" });
+            treedata.Add(new TreeData { nodeId = "02-03-02", nodeText = @Localizer["Consolidated Monthwise"], iconCss = "fa fa-list-alt", pid = "02-03" });
+            treedata.Add(new TreeData { nodeId = "02-03-03", nodeText = @Localizer["Consolidated Aging"], iconCss = "fa fa-list-alt", pid = "02-03" });
+            treedata.Add(new TreeData { nodeId = "02-04", nodeText = @Localizer["Final Reports"], iconCss = "fa fa-line-chart", pid = "02", hasChild = true});
+            treedata.Add(new TreeData { nodeId = "02-04-01", nodeText = @Localizer["Trial Balance"], iconCss = "fa fa-file", pid = "02-04" });
+            treedata.Add(new TreeData { nodeId = "02-04-02", nodeText = @Localizer["Trial Balance Detailed"], iconCss = "fa fa-file", pid = "02-04" });
+            treedata.Add(new TreeData { nodeId = "02-04-03", nodeText = @Localizer["Profit and Loss"], iconCss = "fa fa-file", pid = "02-04" });
+            treedata.Add(new TreeData { nodeId = "02-04-04", nodeText = @Localizer["Balance Sheet"], iconCss = "fa fa-file", pid = "02-04" });
+            treedata.Add(new TreeData { nodeId = "02-04-05", nodeText = @Localizer["Monthly Profit"], iconCss = "fa fa-file", pid = "02-04" });
+            treedata.Add(new TreeData { nodeId = "02-05", nodeText = @Localizer["PDC Reports"], iconCss = "fa fa-files-o", pid = "02" });
+            treedata.Add(new TreeData { nodeId = "02-06", nodeText = @Localizer["Bank Details"], iconCss = "fa fa-university", pid = "02" });
+            treedata.Add(new TreeData { nodeId = "02-07", nodeText = @Localizer["Budget Register"], iconCss = "fa fa-file-text", pid = "02" });
+            treedata.Add(new TreeData { nodeId = "02-08", nodeText = @Localizer["Financial Register"], iconCss = "fa fa-file-text", pid = "02" });
+
+            //Inventory
+            treedata.Add(new TreeData { nodeId = "03", nodeText = @Localizer["Inventory"], iconCss = "fa fa-object-group", hasChild = true, expanded = true });
+            treedata.Add(new TreeData { nodeId = "03-01", nodeText = @Localizer["Sales"], iconCss = "fa fa-money", pid = "03", hasChild = true});
+            treedata.Add(new TreeData { nodeId = "03-01-01", nodeText = @Localizer["Invoice-Wise"], iconCss = "fa fa-list-alt", pid = "03-01", });
+            treedata.Add(new TreeData { nodeId = "03-01-02", nodeText = @Localizer["Month-Wise"], iconCss = "fa fa-calendar-o", pid = "03-01", });
+            treedata.Add(new TreeData { nodeId = "03-01-03", nodeText = @Localizer["Sales Analysis"], iconCss = "fa fa-file-o", pid = "03-01", });
+            treedata.Add(new TreeData { nodeId = "03-02", nodeText = @Localizer["Transaction Register"], iconCss = "fa fa-file", pid = "03" });
+            treedata.Add(new TreeData { nodeId = "03-03", nodeText = @Localizer["Stock Register"], iconCss = "fa fa-file", pid = "03" });
+            treedata.Add(new TreeData { nodeId = "03-04", nodeText = @Localizer["Inventory Register"], iconCss = "fa fa-file", pid = "03" });
+
+            //Vat
+            treedata.Add(new TreeData { nodeId = "04", nodeText = @Localizer["VatReports"], iconCss = "fa fa-object-group"});
+
+
+            await Task.WhenAll(homeUrlTask, logoutUrlTask, accountListTask, currency, financialDateTimeTask, logo, logoUrl);
+
+            HomeUrl = homeUrlTask.Result;
+            LogoutUrl = logoutUrlTask.Result;
+            globalService.AccountStatement = accountListTask.Result.ToList();
+            FinancialDateTime financialDate = financialDateTimeTask.Result;
+
+            await FinancialDateService.SetDates(financialDate.StartDate, financialDate.EndDate);
+            CompanyLogo = logoUrl.Result.ToString() + "LogoWithName/" + logo.Result;
+
+            _UserLogin = userLoginTask.Result.ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+
+        if (_UserLogin == null)
+        {
+            login = true;
+        }
+        else
+        {
+            var count = 0;
+            foreach (var item in _UserLogin)
+            {
+                count++;
+            }
+            if (count >= 2)
+            {
+                login = false;
+            }
+            else
+                login = true;
+        }
+
+        SfTreeView = true;
+        await InvokeAsync(StateHasChanged);
+    }
+
+
+    private async Task OnSelect(NodeClickEventArgs args)
+    {
+        if (args.NodeData.HasChildren)
+        {
+            await HandleParentNode(args);
+        }
+        else
+        {
+            await HandleLeafNode(args);
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task HandleLeafNode(NodeClickEventArgs args)
+    {
+        var localizedMenuName = Localizer[args.NodeData.Text].Value;
+        bool MenuRight = await CheckMenuPermission(args.NodeData.Text);
+        if (MenuRoutes.ContainsKey(localizedMenuName) && MenuRight)
+        {
+            string targetRoute = MenuRoutes[localizedMenuName];
+            uriHelper.NavigateTo(uriHelper.BaseUri + targetRoute);
+        }
+        else
+        {
+            await this.ToastObj.ShowAsync(Toast[2]);
+        }
+    }
+
+    private async Task HandleParentNode(NodeClickEventArgs args)
+    {
+        Console.WriteLine("Parent node clicked: " + args.NodeData.Text);
+        await Task.CompletedTask;
+    }
+
+    private async Task<bool> CheckMenuPermission(string menuItem)
+    {
+        bool MenuRight = await _UserRights.GetMenuRight("MenuRights", menuItem, "Financial Reports", BranchID, UserID);
+        // return Category == "Administrator" || MenuRight;
+        return true;
+    }
+
+
+
+    // public async Task OnSelect(NodeClickEventArgs args)
+    // {
+    //     bool MenuRight = await _UserRights.GetMenuRight("MenuRights", args.NodeData.Text, "Financial Reports", BranchID, UserID);
+    //     if (Category == "Administrator")
+    //         MenuRight = true;
+    //     //bool MenuRight = true;
+    //     if (args.NodeData.Text == @Localizer["Dashboard"])
+    //     {
+    //         uriHelper.NavigateTo(uriHelper.BaseUri + "Financedashboard");
+    //     }
+    //     else if (args.NodeData.Text == @Localizer["Account Statement"] && MenuRight == true)
+    //     {
+    //         uriHelper.NavigateTo(uriHelper.BaseUri + "StatementDetails");
+    //     }
+    //     else if (args.NodeData.Text == @Localizer["Billwise Statement"] && MenuRight == true)
+    //     {
+    //         uriHelper.NavigateTo(uriHelper.BaseUri + "Billwise");
+    //     }
+    //     else if (args.NodeData.Text == @Localizer["Consolidated Report"] && MenuRight == true)
+    //     {
+    //         uriHelper.NavigateTo(uriHelper.BaseUri + "Consolidated");
+    //     }
+    //     else if (args.NodeData.Text == @Localizer["Consolidated Aging"] && MenuRight == true)
+    //     {
+    //         //uriHelper.NavigateTo(uriHelper.BaseUri + "Construction");
+    //         uriHelper.NavigateTo(uriHelper.BaseUri + "ConsolidatedAging");
+    //     }
+    //     else if (args.NodeData.Text == @Localizer["Tansaction Register"] && MenuRight == true)
+    //     {
+    //         //uriHelper.NavigateTo(uriHelper.BaseUri + "Construction");
+    //         uriHelper.NavigateTo(uriHelper.BaseUri + "TansactionRegister");
+    //     }
+    //     else if (args.NodeData.Text == @Localizer["Consolidated Monthwise"] && MenuRight == true)
+    //     {
+    //         uriHelper.NavigateTo(uriHelper.BaseUri + "ConsolidatedMonthwise");
+    //     }
+    //     else if (args.NodeData.Text == @Localizer["Fund Flow"] && MenuRight == true)
+    //     {
+    //         uriHelper.NavigateTo(uriHelper.BaseUri + "FundFLow");
+    //     }
+    //     else if (args.NodeData.Text == @Localizer["Trial Balance"] && MenuRight == true)
+    //     {
+    //         uriHelper.NavigateTo(uriHelper.BaseUri + "TrialBalance");
+    //     }
+    //     else if (args.NodeData.Text == @Localizer["Trial Balance Detailed"] && MenuRight == true)
+    //     {
+    //         uriHelper.NavigateTo(uriHelper.BaseUri + "TrialBalanceDetailed");
+    //     }
+    //     else if (args.NodeData.Text == @Localizer["Profit and Loss"] && MenuRight == true)
+    //     {
+    //         uriHelper.NavigateTo(uriHelper.BaseUri + "PnL");
+    //     }
+    //     else if (args.NodeData.Text == @Localizer["Balance Sheet"] && MenuRight == true)
+    //     {
+    //         uriHelper.NavigateTo(uriHelper.BaseUri + "BalanceSheets");
+    //     } 
+    //     else if (args.NodeData.Text == @Localizer["Financial Register"] && MenuRight == true)
+    //     {
+    //         uriHelper.NavigateTo(uriHelper.BaseUri + "FinancialRegister");
+    //     }
+    //     else if (args.NodeData.Text == @Localizer["Registers"] && MenuRight == true)
+    //     {
+    //         uriHelper.NavigateTo(uriHelper.BaseUri + "Registers");
+    //     }
+    //     else if (args.NodeData.Text == @Localizer["Monthly Profit"] && MenuRight == true)
+    //     {
+    //         uriHelper.NavigateTo(uriHelper.BaseUri + "MonthlyProfit");
+    //     }
+    //     else if (args.NodeData.Text == @Localizer["PDC Reports"] && MenuRight == true)
+    //     {
+    //         uriHelper.NavigateTo(uriHelper.BaseUri + "PDCReport");
+    //     }
+    //     else if (args.NodeData.Text == @Localizer["Bank Details"] && MenuRight == true)
+    //     {
+    //         uriHelper.NavigateTo(uriHelper.BaseUri + "BankRegister");
+    //     }
+    //     else if (args.NodeData.Text == @Localizer["Budget Register"] && MenuRight == true)
+    //     {
+    //         uriHelper.NavigateTo(uriHelper.BaseUri + "BudgetRegister");
+    //     }
+    //     else if (args.NodeData.Text == @Localizer["Invoice-Wise"] && MenuRight == true)
+    //     {
+    //         uriHelper.NavigateTo(uriHelper.BaseUri + "InvoiceWiseSales");
+    //     } 
+    //     else if (args.NodeData.Text == @Localizer["Month-Wise"] && MenuRight == true)
+    //     {
+    //         uriHelper.NavigateTo(uriHelper.BaseUri + "MonthwiseSalesManWise");
+    //     }
+    //     else if (args.NodeData.Text == @Localizer["Sales Analysis"] && MenuRight == true)
+    //     {
+    //         uriHelper.NavigateTo(uriHelper.BaseUri + "SalesAnalysis");
+    //     }
+    //     else if (args.NodeData.HasChildren == true)
+    //     {
+
+    //     }
+    //     else
+    //     {
+    //         await this.ToastObj.ShowAsync(Toast[2]);
+    //     }
+    //     await InvokeAsync(StateHasChanged);
+    // }
+
+    DtoLoginModel? info = new DtoLoginModel();
+    private bool Lang;
+    private string IconClass => Lang ? "Icon En" : "Icon Ar";
+    private async Task LanguageChange()
+    {
+        string Language = await SessionStorage.GetItemAsync<string>("language");
+        if (Language == "en-US")
+        {
+            var js = (IJSInProcessRuntime)JsRuntime;
+            js.InvokeVoid("cultureInfo.set", "ar-AE");
+            await SessionStorage.SetItemAsync("language", "ar-AE");
+
+            // info.Language = "ar-AE";
+            // await SetLoginInfo();
+            Lang = true;
+            uriHelper.NavigateTo(uriHelper.Uri, forceLoad: true);
+        }
+        else
+        {
+            var js = (IJSInProcessRuntime)JsRuntime;
+            js.InvokeVoid("cultureInfo.set", "en-US");
+            await SessionStorage.SetItemAsync("language", "en-US");
+
+            // info.Language = "en-US";
+            // await SetLoginInfo();
+            Lang = false;
+            uriHelper.NavigateTo(uriHelper.Uri, forceLoad: true);
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+    private async Task SetLoginInfo()
+    {
+        try
+        {
+            string jsonString = JsonConvert.SerializeObject(info);
+            string param = await http.GetStringAsync("API/Encryption/Encrypt?Text=" + jsonString);
+            if (!string.IsNullOrEmpty(param))
+                await SessionStorage.SetItemAsync("token", param);
+        }
+        catch (Exception ex)
+        {
+            await SessionStorage.ClearAsync();
+            throw ex;
+        }
+    }
+
+    public async Task FullScreenClick()
+    {
+        btnFullScreen = !btnFullScreen;
+        var dimension = await JsRuntime.InvokeAsync<WindowDimension>("getWindowDimensions");
+        if (btnFullScreen)
+        {
+            DeviceHeight = dimension.Height + "px";
+            MobileWidth = dimension.Width;
+            titleFullScreen = "Close FullScreen";
+        }
+        else
+        {
+            DeviceHeight = dimension.Height - 80 + "px";
+            MobileWidth = dimension.Width;
+            titleFullScreen = "FullScreen";
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+    private async Task Reload()
+    {
+        await JsRuntime.InvokeVoidAsync("clearCache");
+        uriHelper.NavigateTo(uriHelper.Uri, forceLoad: true);
+        await VersionChecker();
+    }
+    public async Task VersionChecker()
+    {
+        try
+        {
+            CacheVersion = IConfig.GetValue<string>("ClientVersion:VersionNo");
+            string ServerVersion = await VersionServ.GetCacheVersion();
+            if (CacheVersion != ServerVersion)
+            {
+                VersionUpdate = true;
+            }
+            else
+            {
+                VersionUpdate = false;
+                CacheVersion = ServerVersion;
+            }
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+    }
+    public async Task ItemEventClick(SpeedDialItemEventArgs args)
+    {
+        if (args != null)
+        {
+            if (args.Item.ID == "1")
+            {
+                await FullScreenClick();
+            }
+            else if (args.Item.ID == "2")
+            {
+                await ClipboardClick();
+            }
+            else if (args.Item.ID == "3")
+            {
+                //string Url = navigationManager.BaseUri + "Home";
+                await JsRuntime.InvokeAsync<object>("open", HomeUrl, "_blank");
+            }
+            else if (args.Item.ID == "4")
+            {
+                CalculatorToggle = !CalculatorToggle;
+            }
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+    public async Task ClipboardClick()
+    {
+        btnClipboard = !btnClipboard;
+        if (btnClipboard)
+        {
+            titleClipboard = "Disable Clipboard";
+            ClipboardValue = "text";
+        }
+        else
+        {
+            titleClipboard = "Enable Clipboard";
+            ClipboardValue = "none";
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+
+}

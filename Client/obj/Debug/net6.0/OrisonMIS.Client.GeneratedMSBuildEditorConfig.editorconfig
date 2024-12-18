@@ -1,0 +1,227 @@
+is_global = true
+build_property.EnableAotAnalyzer = 
+build_property.EnableSingleFileAnalyzer = 
+build_property.EnableTrimAnalyzer = false
+build_property.IncludeAllContentForSelfExtract = 
+build_property.TargetFramework = net6.0
+build_property.TargetPlatformMinVersion = 
+build_property.UsingMicrosoftNETSdkWeb = 
+build_property.ProjectTypeGuids = 
+build_property.InvariantGlobalization = false
+build_property.PlatformNeutralAssembly = 
+build_property.EnforceExtendedAnalyzerRules = 
+build_property._SupportedPlatformList = browser
+build_property.RootNamespace = OrisonMIS.Client
+build_property.RootNamespace = OrisonMIS.Client
+build_property.ProjectDir = E:\OrisonMIS_WASM\OrisonMIS\OrisonMIS\Client\
+build_property.EnableComHosting = 
+build_property.EnableGeneratedComInterfaceComImportInterop = 
+build_property.RazorLangVersion = 6.0
+build_property.SupportLocalizedComponentNames = 
+build_property.GenerateRazorMetadataSourceChecksumAttributes = 
+build_property.MSBuildProjectDirectory = E:\OrisonMIS_WASM\OrisonMIS\OrisonMIS\Client
+build_property._RazorSourceGeneratorDebug = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/App.razor]
+build_metadata.AdditionalFiles.TargetPath = QXBwLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/Counter.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQ291bnRlci5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/DashBoard/FinanceDashboard.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRGFzaEJvYXJkXEZpbmFuY2VEYXNoYm9hcmQucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/ExternalSession.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRXh0ZXJuYWxTZXNzaW9uLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/FetchData.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmV0Y2hEYXRhLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/Financial/BalanceSheets.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmluYW5jaWFsXEJhbGFuY2VTaGVldHMucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/Financial/BalanceSheetWithHistory.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmluYW5jaWFsXEJhbGFuY2VTaGVldFdpdGhIaXN0b3J5LnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/Financial/BankRegister.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmluYW5jaWFsXEJhbmtSZWdpc3Rlci5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/Financial/BillwiseStatement.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmluYW5jaWFsXEJpbGx3aXNlU3RhdGVtZW50LnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/Financial/BillwiseStatementExternal.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmluYW5jaWFsXEJpbGx3aXNlU3RhdGVtZW50RXh0ZXJuYWwucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/Financial/BudgetRegister.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmluYW5jaWFsXEJ1ZGdldFJlZ2lzdGVyLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/Financial/ConsolidatedAging.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmluYW5jaWFsXENvbnNvbGlkYXRlZEFnaW5nLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/Financial/ConsolidatedMonthwise.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmluYW5jaWFsXENvbnNvbGlkYXRlZE1vbnRod2lzZS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/Financial/ConsolidatedRegister.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmluYW5jaWFsXENvbnNvbGlkYXRlZFJlZ2lzdGVyLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/Financial/CustomerDetails.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmluYW5jaWFsXEN1c3RvbWVyRGV0YWlscy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/Financial/FileUpload.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmluYW5jaWFsXEZpbGVVcGxvYWQucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/Financial/FinancialRegister.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmluYW5jaWFsXEZpbmFuY2lhbFJlZ2lzdGVyLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/Financial/FundFlow.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmluYW5jaWFsXEZ1bmRGbG93LnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/Financial/InvoiceWiseSales.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmluYW5jaWFsXEludm9pY2VXaXNlU2FsZXMucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/Financial/MonthlyProfitReg.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmluYW5jaWFsXE1vbnRobHlQcm9maXRSZWcucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/Financial/MonthWiseSalesManWise.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmluYW5jaWFsXE1vbnRoV2lzZVNhbGVzTWFuV2lzZS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/Financial/NonStockItem.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmluYW5jaWFsXE5vblN0b2NrSXRlbS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/Financial/PDCReports.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmluYW5jaWFsXFBEQ1JlcG9ydHMucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/Financial/ProfitAndLoss.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmluYW5jaWFsXFByb2ZpdEFuZExvc3MucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/Financial/Registers/ItemRegister.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmluYW5jaWFsXFJlZ2lzdGVyc1xJdGVtUmVnaXN0ZXIucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/Financial/Registers/SupplierRegister.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmluYW5jaWFsXFJlZ2lzdGVyc1xTdXBwbGllclJlZ2lzdGVyLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/Financial/SalesAnalysisDateWise.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmluYW5jaWFsXFNhbGVzQW5hbHlzaXNEYXRlV2lzZS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/Financial/StatementDetails.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmluYW5jaWFsXFN0YXRlbWVudERldGFpbHMucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/Financial/StatementDetailsExternal.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmluYW5jaWFsXFN0YXRlbWVudERldGFpbHNFeHRlcm5hbC5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/Financial/StockItem.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmluYW5jaWFsXFN0b2NrSXRlbS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/Financial/SupplierEntry.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmluYW5jaWFsXFN1cHBsaWVyRW50cnkucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/Financial/TransactionRegister.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmluYW5jaWFsXFRyYW5zYWN0aW9uUmVnaXN0ZXIucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/Financial/TrialBalance.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmluYW5jaWFsXFRyaWFsQmFsYW5jZS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/Financial/TrialBalanceDetailed.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmluYW5jaWFsXFRyaWFsQmFsYW5jZURldGFpbGVkLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/Financial/Yearwise.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmluYW5jaWFsXFllYXJ3aXNlLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/Home.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcSG9tZS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/Index.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcSW5kZXgucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/Inventory/InventoryRegister.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcSW52ZW50b3J5XEludmVudG9yeVJlZ2lzdGVyLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/Inventory/StockRegister.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcSW52ZW50b3J5XFN0b2NrUmVnaXN0ZXIucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/Loading/LoadingScreen.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcTG9hZGluZ1xMb2FkaW5nU2NyZWVuLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/Login.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcTG9naW4ucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/Redirect.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcUmVkaXJlY3QucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/Tools/Calculator.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVG9vbHNcQ2FsY3VsYXRvci5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/VAT/VatRegister.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVkFUXFZhdFJlZ2lzdGVyLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Pages/VAT/VatReport.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcVkFUXFZhdFJlcG9ydC5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Shared/EmptyLayout.razor]
+build_metadata.AdditionalFiles.TargetPath = U2hhcmVkXEVtcHR5TGF5b3V0LnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Shared/LoginLayout.razor]
+build_metadata.AdditionalFiles.TargetPath = U2hhcmVkXExvZ2luTGF5b3V0LnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Shared/SurveyPrompt.razor]
+build_metadata.AdditionalFiles.TargetPath = U2hhcmVkXFN1cnZleVByb21wdC5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/_Imports.razor]
+build_metadata.AdditionalFiles.TargetPath = X0ltcG9ydHMucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Shared/MainLayout.razor]
+build_metadata.AdditionalFiles.TargetPath = U2hhcmVkXE1haW5MYXlvdXQucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = b-x6776lpc0h
+
+[E:/OrisonMIS_WASM/OrisonMIS/OrisonMIS/Client/Shared/NavMenu.razor]
+build_metadata.AdditionalFiles.TargetPath = U2hhcmVkXE5hdk1lbnUucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = b-ci9sgr1i02

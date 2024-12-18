@@ -1,0 +1,112 @@
+﻿@page "/ExternalSession"
+@using Microsoft.AspNetCore.WebUtilities
+@using SecurityService
+@using System.Globalization
+@using OrisonMIS.Client.Pages.Loading
+@using OrisonMIS.Shared.Entities.General
+@using System.Web
+@using Newtonsoft.Json
+@using System.Dynamic
+@layout LoginLayout
+@inject NavigationManager _NavManager
+@inject HttpClient http
+@inject Blazored.SessionStorage.ISessionStorageService sessionStorage
+@inject OrisonMIS.Client.Logics.Contract.General.IUserLoginManager _IUserLoginManager
+@inject OrisonMIS.Client.Logics.Contract.General.ICompanyManager _ICompanyManager
+@inject Blazored.SessionStorage.ISessionStorageService sessionStorage
+@inject OrisonMIS.Client.Logics.Contract.Inventory.IInvAccounts _IInvAccounts
+@inject OrisonMIS.Client.Services.GlobalService globalService
+
+
+@inject IJSRuntime IJS
+
+@code {
+    public string ID, BranchID, Date, Key, Language, PageToNavigate;
+    DateTime URLDate;
+    IEnumerable<DtoLoginModel> info = new List<DtoLoginModel>();
+    IEnumerable<UserLogin> _UserLogin = new List<UserLogin>();
+    public List<ExpandoObject> CompanyDetails = new List<ExpandoObject>();
+    protected override async Task OnInitializedAsync()
+    {
+            var uri = _NavManager.ToAbsoluteUri(_NavManager.Uri);
+            var queryStrings = QueryHelpers.ParseQuery(uri.Query);
+            if (queryStrings.TryGetValue("Param", out var _Param))
+            {
+                string param = await http.GetStringAsync("api/Encryption/Decrypt?Text=" + _Param.ToString());
+                string[] paramArr = param.Split(new Char[] { '&' });
+                if (paramArr.Length > 0)
+                {
+                    Dictionary<String, String> paramKeyVal = paramArr.Select(x => x.Split('=')).ToDictionary(x => x[0], x => x[1]);
+                    if ((paramKeyVal.TryGetValue("ID", out var id)))
+                    {
+                        ID = id;
+                    }
+                    else if ((paramKeyVal.TryGetValue("UserID", out var userId)))
+                    {
+                        ID = userId;
+                    }
+                    if ((paramKeyVal.TryGetValue("BranchID", out var Value2)))
+                    {
+                        BranchID = Value2;
+                    }
+                   
+                    if ((paramKeyVal.TryGetValue("Key", out var _Key)))
+                    {
+                        Key = _Key;
+                    }
+                    if ((paramKeyVal.TryGetValue("Page", out var navigationPage)))
+                    {
+                        PageToNavigate = navigationPage;
+                    }
+                    if (ID != null && BranchID != null && !string.IsNullOrEmpty(Key))
+                    {
+                        string _key = await http.GetStringAsync("API/Encryption/Encrypt?Text=" + HttpUtility.UrlEncode(Key));
+
+                        if (!string.IsNullOrEmpty(_key))
+                        {
+                            string language = await IJS.InvokeAsync<string>("cultureInfo.get");
+                            await sessionStorage.SetItemAsync("language", language);
+                            await sessionStorage.SetItemAsync("token_key", _key);
+                            await sessionStorage.SetItemAsync("RedirectUserID", ID);
+                            await sessionStorage.SetItemAsync("RedirectBranchID", BranchID);
+                            var accountListTask = _IInvAccounts.GetAccounts("All");
+                            var userLogin = (_IUserLoginManager.GetUserData(int.Parse(ID), int.Parse(BranchID)));
+                            var companyDetails =  _ICompanyManager.GetCompanyDetails(Convert.ToInt32(BranchID));
+
+                            _UserLogin = (await userLogin).ToList();
+                            CompanyDetails = await companyDetails;
+                            globalService.AccountStatement = (await accountListTask).ToList();
+
+                            if (_UserLogin.Count() > 0)
+                            {
+                                await SetSessionStorage();
+                                _NavManager.NavigateTo(PageToNavigate);
+
+                            }
+
+                        }
+                    }
+                }
+            }
+        
+    }
+
+    protected async Task SetSessionStorage()
+    {
+        await sessionStorage.SetItemAsync("UserID", _UserLogin.First().UserID);
+        await sessionStorage.SetItemAsync("AccountID", _UserLogin.First().AccountID);
+        await sessionStorage.SetItemAsync("Username", _UserLogin.First().UserName);
+        await sessionStorage.SetItemAsync("Name", _UserLogin.First().Name);
+        await sessionStorage.SetItemAsync("Password", _UserLogin.First().Password);
+        await sessionStorage.SetItemAsync("Category", _UserLogin.First().Category);
+        await sessionStorage.SetItemAsync("ProfileID", _UserLogin.First().ProfileID);
+        await sessionStorage.SetItemAsync("BranchID", _UserLogin.First().BranchID);
+        var firstCompany = CompanyDetails[0] as IDictionary<string, object>;
+        if (firstCompany != null && firstCompany.ContainsKey("CompanyCode"))
+        {
+            var companyCode = firstCompany["CompanyCode"].ToString();
+            await sessionStorage.SetItemAsync("CompanyCode", companyCode);
+        }
+
+    }
+}

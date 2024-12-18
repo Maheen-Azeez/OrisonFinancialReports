@@ -1,0 +1,328 @@
+﻿@page "/InventoryRegister"
+@using OrisonMIS.Client.Services
+@using Microsoft.AspNetCore.Components;
+@using OrisonMIS.Shared.Entities.General
+@using OrisonMIS.Shared.Entities.Inventory
+@using Syncfusion.Blazor.Buttons;
+@using Syncfusion.Blazor.TreeGrid;
+@using Syncfusion.Blazor.Inputs;
+@using Syncfusion.Blazor.Calendars;
+@using Syncfusion.Blazor.DropDowns;
+@using Syncfusion.Blazor.Grids;
+@using Syncfusion.Blazor.Spinner;
+@using Newtonsoft.Json;
+@using Newtonsoft.Json.Linq;
+@using Syncfusion.Blazor.Popups;
+@inject NavigationManager uriHelper
+@inject HttpClient http
+@inject GlobalService _GlobalServ
+@inject IJSRuntime IJS
+@inject FinancialDateTimeService FinancialDateService
+
+@inject Blazored.SessionStorage.ISessionStorageService _sessionStorage
+@inject OrisonMIS.Client.Logics.Contract.Inventory.IInventoryRegisterManager _InventoryRegisters
+
+@inject OrisonMIS.Client.Services.UserRightsService _UserRights
+@using Microsoft.Extensions.Localization
+@using OrisonMIS.Client.Resources
+@inject IStringLocalizer<SfResources> Localizer
+<head>
+    <link href="css/OrisonSyncfusionStyles.css" rel="stylesheet" />
+</head>
+
+<div>
+    <div class="box-card-shadow">
+        <div class="row">
+            <div class="col-sm-12" style="padding-bottom:7px;">
+                <div class="row" style="padding-top: 5px;">
+                    <div class="col-md-8">
+                        <SfButton @onclick="ExcelExport" IconCss="Icon excel" CssClass="e-btn" Content=@Localizer["Excel"] IsPrimary="false" />
+                        <SfButton @onclick="PdfExport" IconCss="Icon pdf" CssClass="e-btn" Content=@Localizer["PDF"] IsPrimary="false" />
+                    </div>
+                    <div class="col-md-4" style="text-align:end">
+                        <label class="page-heading">@Localizer["Inventory Register"]</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="box-card-shadow">
+        <div class="row">
+            <div class="col-sm-12" style="padding-bottom:8px;">
+                <div class="row">
+                    <div class="col-md-12">
+                        <SfTextBox @bind-Value="@Item.ItemName" CssClass="textbox" @ref="@ItemReference" Placeholder=@Localizer["Please select an Item"] ShowClearButton="true" Readonly="true" Width="250px" Focus="@ItemFocusHandler"></SfTextBox>
+                        <SfComboBox TValue="string" TItem="CategoryDto" DataSource="@Categories" Placeholder=@Localizer["Select Category"] Width="250px" CssClass="e-multi-column" AllowFiltering="true" PopupHeight="300px" Enabled="true">
+                            <ComboBoxFieldSettings Value="Id" Text="Name"></ComboBoxFieldSettings>
+                            <ComboBoxEvents TItem="CategoryDto" TValue="string" OnValueSelect="OnCategorySelect"></ComboBoxEvents>
+                        </SfComboBox>
+                        <SfDatePicker @bind-Value="@FinancialDateService.StartDate" Format="dd/MM/yyyy" title=@Localizer["From Date"] Width="140px" Placeholder=@Localizer["From Date"]></SfDatePicker>
+                        <SfDatePicker @bind-Value="@FinancialDateService.EndDate" Format="dd/MM/yyyy" title=@Localizer["To Date"] Width="140px" Placeholder=@Localizer["To Date"]></SfDatePicker>
+                        <SfButton IconCss="Icon search" @onclick="@Search_Click" title=@Localizer["Search"] CssClass="widthset"></SfButton>
+                        <SfTextBox @ref="search" Input="OnInput" Placeholder=@Localizer["Global Search"] Width="250px" ShowClearButton="true" CssClass="e-btn2"></SfTextBox>
+                        <SfButton IconCss="Icon filter" CssClass="e-btn4" Content=" " @onclick="@Clear_Click" HtmlAttributes="@ClearFilter"></SfButton>
+
+                        @if (Isload)
+                        {
+                            <img src="gif/loading-waiting.gif" style="padding-left:2px; width: 20px; height: 20px;" />
+                        }
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="box-card-shadow">
+        <div class="col-md-12 col-sm-12">
+            <div class="row" style="padding-top:0px;">
+                <div class="table-responsive" style="position: relative;min-height:600px; min-width: 300px ">
+
+                        <SfGrid DataSource="dataSource"
+                                GridLines="@GridLine.Vertical"
+                                EnableHover="true"
+                                EnableVirtualization="true"
+                                Height="@GridHeight"
+                                Width="100%"
+                                @ref="Grid"
+                                AllowFiltering="true"
+                                AllowResizing="true"
+                                AllowPdfExport="true"
+                                AllowPaging="true"
+                                AllowSorting="true"
+                                AllowExcelExport="true"
+                                RowHeight="25">
+                            <GridPageSettings PageSize="100"></GridPageSettings>
+                             
+                            <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel" ShowFilterBarStatus="true"></GridFilterSettings>
+                            <GridColumns>
+                                
+                                <GridColumn Field="@nameof(InventoryRegisterDto.ItemCode)" HeaderText=@Localizer["Item Code"] Width="100"  HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(InventoryRegisterDto.ItemName)" HeaderText=@Localizer["Item Name"] Width="150" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(InventoryRegisterDto.VNo)" HeaderText=@Localizer["VNo"] Width="100" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(InventoryRegisterDto.VDate)" HeaderText=@Localizer["VDate"] Width="100" Format="dd/MM/yyyy" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(InventoryRegisterDto.RefNo)" HeaderText=@Localizer["RefNo"] Width="100" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(InventoryRegisterDto.PartyName)" HeaderText=@Localizer["Party Name"] Width="150" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(InventoryRegisterDto.Project)" HeaderText=@Localizer["Project"] Width="100" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(InventoryRegisterDto.QtyIn)" HeaderText=@Localizer["QtyIn"] Width="100" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(InventoryRegisterDto.QtyOut)" HeaderText=@Localizer["QtyOut"] Width="100" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(InventoryRegisterDto.Unit)" HeaderText=@Localizer["Unit"] Width="100" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(InventoryRegisterDto.Balance)" HeaderText=@Localizer["Balance"] Width="100" HeaderTextAlign="TextAlign.Left"></GridColumn>
+
+                                <GridColumn Field="@nameof(InventoryRegisterDto.Rate)" HeaderText=@Localizer["Rate"] Width="100" Format="0.00" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(InventoryRegisterDto.ARate)" HeaderText=@Localizer["ARate"] Width="100" Format="0.00" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(InventoryRegisterDto.AmountIn)" HeaderText=@Localizer["AmountIn"] Width="100" Format="0.00" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(InventoryRegisterDto.AmountOut)" HeaderText=@Localizer["AmountOut"] Width="100" Format="0.00" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(InventoryRegisterDto.AAmountIn)" HeaderText=@Localizer["AAmountIn"] Width="100" Format="0.00" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(InventoryRegisterDto.AAmountOut)" HeaderText=@Localizer["AAmountOut"] Width="100" Format="0.00" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left"></GridColumn>
+                                <GridColumn Field="@nameof(InventoryRegisterDto.AvgCost)" HeaderText=@Localizer["AvgCost"] Width="100" Format="0.00" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Left"></GridColumn>
+
+                            </GridColumns>
+
+                        </SfGrid>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+    <SfDialog Width="80%" Height="90%" IsModal="true" @bind-Visible="ItemDisplayed" ShowCloseIcon="true">
+        <DialogEvents />
+
+        <DialogTemplates>
+            <Header>
+                <div style="padding-top:10px">
+@*                     <SfTextBox @ref="searchAccount" Input="OnInputAccount" Placeholder=@Localizer["Search here"]  ShowClearButton="true" CssClass="e-btn2"></SfTextBox>
+ *@                </div>
+            </Header>
+            <Content>
+                <div>
+                    <SfGrid DataSource="@Items"
+                            GridLines="GridLine.Both"
+                            Height="@GridHeight" Width="100%"
+                            AllowPaging="true"
+                            AllowFiltering="true"
+                            AllowResizing="true"
+                            AllowSorting="true"
+                            AllowReordering="true"
+                            
+                            ShowColumnChooser="true"
+                            EnablePersistence="true"
+                            RowHeight="23">
+                        <GridEvents RowSelecting="ItemRowSelectingHandler" TValue="InventoryItemMasterDto"></GridEvents>
+                        <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel" ShowFilterBarStatus="false"></GridFilterSettings>
+                        <GridPageSettings PageSize="100"></GridPageSettings>
+                        <GridSelectionSettings PersistSelection="true" Mode="Syncfusion.Blazor.Grids.SelectionMode.Both" Type="Syncfusion.Blazor.Grids.SelectionType.Single"></GridSelectionSettings>
+                        <GridTemplates>
+                        </GridTemplates>
+                        <GridColumns>
+                            <GridColumn Field=@nameof(InventoryItemMasterDto.ID) IsPrimaryKey="true" Index="1" Visible="false" AllowFiltering="false"></GridColumn>
+                            <GridColumn Field=@nameof(InventoryItemMasterDto.ItemCode) HeaderText=@Localizer["Item Code"] Index="2" Width="30%"></GridColumn>
+                            <GridColumn Field=@nameof(InventoryItemMasterDto.ItemName) HeaderText=@Localizer["Item Name"] Index="3" Width="70%"></GridColumn>
+                        </GridColumns>
+                    @if (ItemLoading)
+                    {
+                        <svg width="2500" height="2500" viewBox="126.444 2.281 589 589"><image href="gif/loading-waiting.gif" height="590px" width="770px" /></svg>
+                    }
+                    </SfGrid>
+                </div>
+            </Content>
+        </DialogTemplates>
+        <DialogButtons>
+            <DialogButton Content="Cancel" CssClass="e-btn" @onclick="@(() => ItemDisplayed = false)" />
+        </DialogButtons>
+    </SfDialog>
+
+@code {
+    int user, BranchID, AccountID, ID;
+    public string? Name, Remarks, FD, TD, FinYear;
+    private int ItemId;
+    private int SelectedCategoryId;
+    public bool Isload = false;
+    string GridHeight = "500px";
+    public string register { get; set; } = "registers";
+    public string BasicType { get; set; }
+    private IEnumerable<InventoryItemMasterDto> Items { get; set; }
+    private InventoryItemMasterDto? Item { get; set; } = new InventoryItemMasterDto();
+    public string? DecimalFormat { get; set; }
+    DateTime SDate = DateTime.Now, EDate = DateTime.Now;
+    public List<InventoryRegisterDto> dataSource = new List<InventoryRegisterDto>();
+    SfGrid<InventoryRegisterDto> Grid { get; set; }
+    private Dictionary<string, object> ClearFilter = new Dictionary<string, object>()
+    {
+        { "title", "Clear Filter"}
+    };
+    private IEnumerable<CategoryDto> Categories;
+    private bool ItemDisplayed = false;
+    SfTextBox ItemReference;
+    protected override async Task OnInitializedAsync()
+    {
+        Isload = true;
+        try
+        {
+
+            await GetSessionDetails();
+            Task<IEnumerable<CategoryDto>> categories = Task.Run(async () => (IEnumerable<CategoryDto>)await _InventoryRegisters.FetchCategories(BranchID));
+
+            if (user == 0) { uriHelper.NavigateTo(await _UserRights.GetURl("Logout", AccountID)); }
+            await FinancialDateService.InitializeDates();
+            await SetGridFormatAndStyle();
+            Categories = await categories;
+
+        }
+        catch (Exception ex)
+        {
+
+            throw ex;
+        }
+        finally
+        {
+            Isload = false;
+            await InvokeAsync(StateHasChanged);
+        }
+
+
+    }
+    public async Task GetSessionDetails()
+    {
+        BranchID = await _sessionStorage.GetItemAsync<int>("BranchID");
+        user = await _sessionStorage.GetItemAsync<int>("UserID");
+        AccountID = await _sessionStorage.GetItemAsync<int>("AccountID");
+        await FinancialDateService.InitializeDates();
+    }
+    public async Task SetGridFormatAndStyle()
+    {
+        DecimalFormat = _GlobalServ.GlobalCurrencyFormat == null ? "0.00" : _GlobalServ.GlobalCurrencyFormat;
+        var dimension = await IJS.InvokeAsync<WindowDimension>("getWindowDimensions");
+        GridHeight = (dimension.Height - 180).ToString() + "px";
+    }
+    public async Task Search_Click()
+    {
+        try
+        {
+            Isload = true;
+            SDate = FinancialDateService.StartDate;
+            EDate = FinancialDateService.EndDate;
+            FD = SDate.Month.ToString("00") + "-" + SDate.Day.ToString("00") + "-" + SDate.Year;
+            TD = EDate.Month.ToString("00") + "-" + EDate.Day.ToString("00") + "-" + EDate.Year;
+            dataSource = await _InventoryRegisters.FetchInventoryRegister(BranchID, FD.ToString(), TD.ToString(), SelectedCategoryId, Convert.ToInt32(Item?.ID));
+
+
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+        finally
+        {
+            Isload = false;
+        }
+
+    }
+    public async Task ExcelExport()
+    {
+        ExcelExportProperties excelProperties = new ExcelExportProperties
+            {
+                FileName = "InventoryRegister.xlxs",
+            };
+        await this.Grid.ExportToExcelAsync(excelProperties);
+    }
+    public async Task PdfExport()
+    {
+        PdfExportProperties pdfProperties = new PdfExportProperties
+            {
+                FileName = "InventoryRegister.pdf",
+                PageSize = PdfPageSize.A1
+            };
+        await this.Grid.ExportToPdfAsync(pdfProperties);
+    }
+    SfTextBox search;
+    public void OnInput(InputEventArgs args)
+    {
+        this.Grid.SearchAsync(args.Value);
+        this.StateHasChanged();
+    }
+    public async Task Clear_Click()
+    {
+        Item = new InventoryItemMasterDto();
+        await Grid!.SearchAsync("");
+        await Grid.ClearFilteringAsync();
+
+    }
+    private async Task ItemFocusHandler(FocusInEventArgs args)
+    {
+        ItemLoading = true;
+        ItemDisplayed = true;
+        try
+        {
+            await ItemReference.FocusOutAsync();
+            Items = await _InventoryRegisters.FetchItems(BranchID);
+        }
+        finally
+        {
+            ItemLoading = false;
+            await InvokeAsync(StateHasChanged);
+        }
+
+
+    }
+    private bool ItemLoading = false;
+    public async Task ItemRowSelectingHandler(RowSelectingEventArgs<InventoryItemMasterDto> args) 
+    {
+        try
+        {
+            var item = args.Data;
+            Item = item;
+        }
+        finally 
+        {
+            ItemDisplayed = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+    public void OnCategorySelect(SelectEventArgs<CategoryDto> args)
+    {
+        SelectedCategoryId = args.ItemData.Id;
+    }
+}

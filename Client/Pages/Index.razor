@@ -1,0 +1,128 @@
+﻿@page "/Index"
+@using Syncfusion.Blazor.Spinner
+@using OrisonMIS.Shared.Entities.General
+@using OrisonMIS.Client.Pages.Loading
+@using System.Dynamic
+@layout LoginLayout
+@inject NavigationManager _NavManager
+@inject OrisonMIS.Client.Services.UserRightsService _UserRights
+@inject OrisonMIS.Client.Services.GlobalService globalService
+@inject OrisonMIS.Client.Logics.Contract.Inventory.IInvAccounts _IInvAccounts
+@inject Blazored.SessionStorage.ISessionStorageService localStorage
+@inject OrisonMIS.Client.Logics.Contract.General.IUserLoginManager _IUserLoginManager
+@inject OrisonMIS.Client.Logics.Contract.General.ICompanyManager _ICompanyManager
+<style>
+    #container {
+        margin-top: 80px;
+    }
+
+        #container .row {
+            display: flex;
+        }
+
+            #container .row .col-sm {
+                width: 20%
+            }
+
+    .spin-row {
+        position: initial;
+        height: 120px;
+        width: 120px;
+    }
+
+    #container .row {
+        margin-right: 0px;
+        margin-left: 0px;
+    }
+
+    .material .e-spinner-pane .e-spinner-inner .e-spin-bootstrap {
+        fill: #e3165b;
+    }
+
+    .material .e-spinner-pane .e-spinner-inner .e-spin-bootstrap, .material .e-spinner-pane .e-spinner-inner .e-spin-bootstrap4, .material .e-spinner-pane .e-spinner-inner .e-spin-high-contrast .e-path-arc {
+        stroke: #e3165b;
+    }
+
+    .e-spinner-pane .e-spinner-inner .e-spin-high-contrast .e-path-circle {
+        stroke: none;
+    }
+
+    .bootstrap4 .e-spinner-pane .e-spinner-inner .e-spin-high-contrast .e-path-arc {
+        stroke: #007bff;
+    }
+
+    .bootstrap-dark .e-spinner-pane .e-spinner-inner .e-spin-material, .bootstrap-dark .e-spinner-pane .e-spinner-inner .e-spin-fabric .e-path-arc, .bootstrap-dark .e-spinner-pane .e-spinner-inner .e-spin-bootstrap4, .bootstrap-dark .e-spinner-pane .e-spinner-inner .e-spin-high-contrast .e-path-arc {
+        stroke: #fff;
+    }
+
+    .bootstrap .e-spinner-pane .e-spinner-inner .e-spin-fabric .e-path-circle {
+        stroke: rgba(0, 0, 0, 0.4);
+    }
+
+    .bootstrap4 .e-spinner-pane .e-spinner-inner .e-spin-fabric .e-path-arc {
+        stroke: #007bff;
+    }
+
+    .bootstrap4 .e-spinner-pane .e-spinner-inner .e-spin-fabric .e-path-circle {
+        stroke: rgba(0, 123, 255, 0.4);
+    }
+
+    .tailwind-dark .e-spinner-pane .e-spinner-inner .e-spin-bootstrap4 {
+        stroke: #22d3ee;
+    }
+
+    @@media only screen and (max-width: 1025px) {
+        #container .row {
+            margin-left: 275px;
+            display: block;
+        }
+    }
+</style>
+
+<LoadingScreen></LoadingScreen>
+@code {
+    string ID, BranchID;
+    int? AccountID;
+    int UserID, ProfileID, _BranchID;
+    IEnumerable<UserLogin> _UserLogin = new List<UserLogin>();
+    public List<ExpandoObject> companyDetails = new List<ExpandoObject>();
+    protected override async Task OnInitializedAsync()
+    {
+        ID = await localStorage.GetItemAsync<string>("RedirectUserID");
+        BranchID = await localStorage.GetItemAsync<string>("RedirectBranchID");
+        if (ID != "" && BranchID != "")
+        {
+            _UserLogin = (await _IUserLoginManager.GetUserData(int.Parse(ID), int.Parse(BranchID))).ToList();
+            companyDetails = await _ICompanyManager.GetCompanyDetails(Convert.ToInt32(BranchID));
+            if (_UserLogin.Count() > 0)
+            {
+                await LocalStorage();
+                _NavManager.NavigateTo("Home/");
+            }
+            else
+            {
+                string logouturl = await _UserRights.GetURl("LogOut", Convert.ToInt32(AccountID));
+                _NavManager.NavigateTo(logouturl.ToString());
+            }
+        }
+
+    }
+    protected async Task LocalStorage()
+    {
+        await localStorage.SetItemAsync("UserID", _UserLogin.First().UserID);
+        await localStorage.SetItemAsync("AccountID", _UserLogin.First().AccountID);
+        await localStorage.SetItemAsync("Username", _UserLogin.First().UserName);
+        await localStorage.SetItemAsync("Name", _UserLogin.First().Name);
+        await localStorage.SetItemAsync("Password", _UserLogin.First().Password);
+        await localStorage.SetItemAsync("Category", _UserLogin.First().Category);
+        await localStorage.SetItemAsync("ProfileID", _UserLogin.First().ProfileID);
+        await localStorage.SetItemAsync("BranchID", _UserLogin.First().BranchID);
+        var firstCompany = companyDetails[0] as IDictionary<string, object>;
+        if (firstCompany != null && firstCompany.ContainsKey("CompanyCode"))
+        {
+            var companyCode = firstCompany["CompanyCode"].ToString();
+            await localStorage.SetItemAsync("CompanyCode", companyCode);
+        }
+
+    }
+}

@@ -1,0 +1,560 @@
+﻿@page "/VatReports"
+@page "/VatReports/{Register}"
+@using OrisonMIS.Client.Logics.Contract.VAT
+@using OrisonMIS.Client.Services
+@using OrisonMIS.Shared.Entities.General
+@using OrisonMIS.Shared.Entities.VAT
+@using Syncfusion.Blazor.Buttons
+@using Syncfusion.Blazor.Calendars
+@using Syncfusion.Blazor.Grids
+@using Syncfusion.Blazor.Inputs
+@inject OrisonMIS.Client.Services.FinServices FinServ
+@inject Blazored.SessionStorage.ISessionStorageService sessionStorage
+@inject OrisonMIS.Client.Services.UserRightsService _UserRights
+@inject NavigationManager uriHelper
+@inject IJSRuntime IJS
+@inject GlobalService _GlobalServ
+@using Microsoft.Extensions.Localization
+@using OrisonMIS.Client.Resources
+@inject IStringLocalizer<SfResources> Localizer
+@inject IVatManager vat
+
+<head>
+    <link href="css/OrisonSyncfusionStyles.css" rel="stylesheet" />
+</head>
+<div>
+    <div class="box-card-shadow">
+
+        <div class="row direction">
+            <div class="col-sm-12" style="padding-bottom:8px;">
+                <div class="row">
+                    <div class="col-md-12">
+                        <SfButton @onclick="ExcelExport" IconCss="Icon excel" CssClass="e-btn" Content=@Localizer["Excel"]/>
+                        <SfButton @onclick="ExportPdf" IconCss="Icon pdf" CssClass="e-btn" Content=@Localizer["PDF"]/>
+                        <SfDatePicker @bind-Value="@SDate" Format="dd/MM/yyyy" title=@Localizer["From Date"] Width="120px" Placeholder=@Localizer["From Date"]></SfDatePicker>
+                        <SfDatePicker @bind-Value="@EDate" Format="dd/MM/yyyy" title=@Localizer["To Date"] Width="120px" Placeholder=@Localizer["To Date"]></SfDatePicker>
+                        <SfButton IconCss="Icon search" @onclick="@Search_Click" title=@Localizer["Search"] CssClass="widthset"></SfButton>
+                        <SfButton IconCss="Icon redirect" @onclick="@VATRegister_Click" Content=@Localizer["VAT Register"] CssClass="e-btn-6"></SfButton>
+                        @if (Isload)
+                        {
+                            <img src="gif/loading-waiting.gif" style="padding-left:2px; width: 20px; height: 20px;" />
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="box-card-shadow">
+        @if(!isRegister){
+        <fieldset class="fieldset fieldsetclass">
+            <legend class="legentclass">@Localizer["Current VAT"]</legend>
+            <div class="table-responsive" style="position: relative; min-width: 300px ">
+
+                <SfGrid DataSource="@vatReports?.currentVat"
+                        GridLines="GridLine.Both"
+                        AllowExcelExport="true"
+                        AllowPdfExport="true"
+                        AllowFiltering="true"
+                        AllowResizing="true"
+                        Width="100%"
+                        RowHeight="25">
+                    <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel" ShowFilterBarStatus="true"></GridFilterSettings>
+                    <GridColumns>
+                        <GridColumn Field="@nameof(CurrentVatDto.Description)" HeaderText=@Localizer["Description"] Width="130px" Index="1"></GridColumn>
+                        <GridColumn Field="@nameof(CurrentVatDto.VatAmountAED)" HeaderText=@Localizer["Amount"] Width="80px" Format="@DecimalFormat" Index="2"></GridColumn>
+                    </GridColumns>
+@*                     <GridAggregates>
+                        <GridAggregate>
+                            <GridAggregateColumns>
+                                <GridAggregateColumn Field=@nameof(CurrentVatDto.VatAmountAED) Type="AggregateType.Sum" Format="@DecimalFormat">
+                                    <FooterTemplate>
+                                        @{
+                                            var aggregate = (context as AggregateTemplateContext);
+                                            <div>
+                                                <p>@aggregate.Sum</p>
+                                            </div>
+                                        }
+                                    </FooterTemplate>
+                                </GridAggregateColumn>
+                            </GridAggregateColumns>
+                        </GridAggregate>
+                    </GridAggregates>
+ *@                
+                </SfGrid>
+
+            </div>               
+        </fieldset>
+
+        <fieldset class="fieldset fieldsetclass">
+            <legend class="legentclass">@Localizer["OutPut VAT"]</legend>
+            <div class="table-responsive" style="position: relative; min-width: 300px ">
+
+                <SfGrid DataSource="@vatReports?.outPutVat"
+                        GridLines="GridLine.Both"
+                        AllowExcelExport="true"
+                        AllowPdfExport="true"
+                        AllowFiltering="true"
+                        AllowResizing="true"
+                        Width="100%"
+                        RowHeight="25">
+                    <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel" ShowFilterBarStatus="true"></GridFilterSettings>
+                        <GridEvents TValue="OutPutVatDto" QueryCellInfo="OnQueryCellInfoOutPutVat"></GridEvents>
+
+                    <GridColumns>
+                        <GridColumn Field="@nameof(OutPutVatDto.Description)" HeaderText=@Localizer["Description"] Width="130px" ></GridColumn>
+                        <GridColumn Field="@nameof(OutPutVatDto.AmountAED)" HeaderText=@Localizer["Amount"] Width="80px" Format="@DecimalFormat" ></GridColumn>
+                        <GridColumn Field="@nameof(OutPutVatDto.VatAmountAED)" HeaderText=@Localizer["VAT Amount"] Width="80px" Format="@DecimalFormat"></GridColumn>
+                        <GridColumn Field="@nameof(OutPutVatDto.CRAmount)" HeaderText=@Localizer["CR Amount"] Width="80px" Format="@DecimalFormat" ></GridColumn>
+                        <GridColumn Field="@nameof(OutPutVatDto.CRVat)" HeaderText=@Localizer["CR VAT"] Width="80px" Format="@DecimalFormat"></GridColumn>
+                        <GridColumn Field="@nameof(OutPutVatDto.NetAmount)" HeaderText=@Localizer["Net Amount"] Width="80px" Format="@DecimalFormat"></GridColumn>
+                        <GridColumn Field="@nameof(OutPutVatDto.NetVat)" HeaderText=@Localizer["Net VAT"] Width="80px" Format="@DecimalFormat"></GridColumn>
+                        <GridColumn Field="@nameof(OutPutVatDto.AdjustmentAED)" HeaderText=@Localizer["Adjustment"] Width="80px" Format="@DecimalFormat"></GridColumn>
+                    </GridColumns>
+@*                     <GridAggregates>
+                        <GridAggregate>
+                            <GridAggregateColumns>
+                                <GridAggregateColumn Field=@nameof(OutPutVatDto.AdjustmentAED) Type="AggregateType.Sum" Format="@DecimalFormat">
+                                    <FooterTemplate>
+                                        @{
+                                            var aggregate = (context as AggregateTemplateContext);
+                                            <div>
+                                                <p>@aggregate.Sum</p>
+                                            </div>
+                                        }
+                                    </FooterTemplate>
+                                </GridAggregateColumn>
+                                <GridAggregateColumn Field=@nameof(OutPutVatDto.NetVat) Type="AggregateType.Sum" Format="@DecimalFormat">
+                                    <FooterTemplate>
+                                        @{
+                                            var aggregate = (context as AggregateTemplateContext);
+                                            <div>
+                                                <p>@aggregate.Sum</p>
+                                            </div>
+                                        }
+                                    </FooterTemplate>
+                                </GridAggregateColumn>
+                                <GridAggregateColumn Field=@nameof(OutPutVatDto.NetAmount) Type="AggregateType.Sum" Format="@DecimalFormat">
+                                    <FooterTemplate>
+                                        @{
+                                            var aggregate = (context as AggregateTemplateContext);
+                                            <div>
+                                                <p>@aggregate.Sum</p>
+                                            </div>
+                                        }
+                                    </FooterTemplate>
+                                </GridAggregateColumn>
+                                <GridAggregateColumn Field=@nameof(OutPutVatDto.CRVat) Type="AggregateType.Sum" Format="@DecimalFormat">
+                                    <FooterTemplate>
+                                        @{
+                                            var aggregate = (context as AggregateTemplateContext);
+                                            <div>
+                                                <p>@aggregate.Sum</p>
+                                            </div>
+                                        }
+                                    </FooterTemplate>
+                                </GridAggregateColumn>
+                                <GridAggregateColumn Field=@nameof(OutPutVatDto.VatAmountAED) Type="AggregateType.Sum" Format="@DecimalFormat">
+                                    <FooterTemplate>
+                                        @{
+                                            var aggregate = (context as AggregateTemplateContext);
+                                            <div>
+                                                <p>@aggregate.Sum</p>
+                                            </div>
+                                        }
+                                    </FooterTemplate>
+                                </GridAggregateColumn>
+                                <GridAggregateColumn Field=@nameof(OutPutVatDto.AmountAED) Type="AggregateType.Sum" Format="@DecimalFormat">
+                                    <FooterTemplate>
+                                        @{
+                                            var aggregate = (context as AggregateTemplateContext);
+                                            <div>
+                                                <p>@aggregate.Sum</p>
+                                            </div>
+                                        }
+                                    </FooterTemplate>
+                                </GridAggregateColumn>
+                                <GridAggregateColumn Field=@nameof(OutPutVatDto.CRAmount) Type="AggregateType.Sum" Format="@DecimalFormat">
+                                    <FooterTemplate>
+                                        @{
+                                            var aggregate = (context as AggregateTemplateContext);
+                                            <div>
+                                                <p>@aggregate.Sum</p>
+                                            </div>
+                                        }
+                                    </FooterTemplate>
+                                </GridAggregateColumn>
+                            </GridAggregateColumns>
+                        </GridAggregate>
+                    </GridAggregates>
+ *@                
+                </SfGrid>
+
+            </div>
+        </fieldset>
+
+        <fieldset class="fieldset fieldsetclass">
+            <legend class="legentclass">@Localizer["InPut VAT"]</legend>
+            <div class="table-responsive" style="position: relative; min-width: 300px ">
+
+                <SfGrid DataSource="@vatReports?.inPutVat"
+                        GridLines="GridLine.Both"
+                        AllowExcelExport="true"
+                        AllowPdfExport="true"
+                        AllowFiltering="true"
+                        AllowResizing="true"
+                        Width="100%"
+                        RowHeight="25">
+                    <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel" ShowFilterBarStatus="true"></GridFilterSettings>
+                    <GridEvents TValue="InPutVatDto" QueryCellInfo="OnQueryCellInfoInPutVat"></GridEvents>
+                    <GridColumns>
+                        <GridColumn Field="@nameof(InPutVatDto.Description)" HeaderText=@Localizer["Description"] Width="130px"></GridColumn>
+                        <GridColumn Field="@nameof(InPutVatDto.AmountAED)" HeaderText=@Localizer["Amount"] Width="80px" Format="@DecimalFormat"></GridColumn>
+                        <GridColumn Field="@nameof(InPutVatDto.VatAmountAED)" HeaderText=@Localizer["VAT Amount"] Width="80px" Format="@DecimalFormat"></GridColumn>
+                        <GridColumn Field="@nameof(InPutVatDto.DRAmount)" HeaderText=@Localizer["DR Amount"] Width="80px" Format="@DecimalFormat"></GridColumn>
+                        <GridColumn Field="@nameof(InPutVatDto.DRVat)" HeaderText=@Localizer["DR VAT"] Width="80px" Format="@DecimalFormat"></GridColumn>
+                        <GridColumn Field="@nameof(InPutVatDto.NetAmount)" HeaderText=@Localizer["Net Amount"] Width="80px" Format="@DecimalFormat"></GridColumn>
+                        <GridColumn Field="@nameof(InPutVatDto.NetVat)" HeaderText=@Localizer["Net VAT"] Width="80px" Format="@DecimalFormat"></GridColumn>
+                        <GridColumn Field="@nameof(InPutVatDto.AdjustmentAED)" HeaderText=@Localizer["Adjustment"] Width="80px" Format="@DecimalFormat"></GridColumn>
+                    </GridColumns>
+@*                     <GridAggregates>
+                        <GridAggregate>
+                            <GridAggregateColumns>
+                                <GridAggregateColumn Field=@nameof(InPutVatDto.AdjustmentAED) Type="AggregateType.Sum" Format="@DecimalFormat">
+                                    <FooterTemplate>
+                                        @{
+                                            var aggregate = (context as AggregateTemplateContext);
+                                            <div>
+                                                <p>@aggregate.Sum</p>
+                                            </div>
+                                        }
+                                    </FooterTemplate>
+                                </GridAggregateColumn>
+                                <GridAggregateColumn Field=@nameof(InPutVatDto.NetVat) Type="AggregateType.Sum" Format="@DecimalFormat">
+                                    <FooterTemplate>
+                                        @{
+                                            var aggregate = (context as AggregateTemplateContext);
+                                            <div>
+                                                <p>@aggregate.Sum</p>
+                                            </div>
+                                        }
+                                    </FooterTemplate>
+                                </GridAggregateColumn>
+                                <GridAggregateColumn Field=@nameof(InPutVatDto.NetAmount) Type="AggregateType.Sum" Format="@DecimalFormat">
+                                    <FooterTemplate>
+                                        @{
+                                            var aggregate = (context as AggregateTemplateContext);
+                                            <div>
+                                                <p>@aggregate.Sum</p>
+                                            </div>
+                                        }
+                                    </FooterTemplate>
+                                </GridAggregateColumn>
+                                <GridAggregateColumn Field=@nameof(InPutVatDto.DRVat) Type="AggregateType.Sum" Format="@DecimalFormat">
+                                    <FooterTemplate>
+                                        @{
+                                            var aggregate = (context as AggregateTemplateContext);
+                                            <div>
+                                                <p>@aggregate.Sum</p>
+                                            </div>
+                                        }
+                                    </FooterTemplate>
+                                </GridAggregateColumn>
+                                <GridAggregateColumn Field=@nameof(InPutVatDto.VatAmountAED) Type="AggregateType.Sum" Format="@DecimalFormat">
+                                    <FooterTemplate>
+                                        @{
+                                            var aggregate = (context as AggregateTemplateContext);
+                                            <div>
+                                                <p>@aggregate.Sum</p>
+                                            </div>
+                                        }
+                                    </FooterTemplate>
+                                </GridAggregateColumn>
+                                <GridAggregateColumn Field=@nameof(InPutVatDto.AmountAED) Type="AggregateType.Sum" Format="@DecimalFormat">
+                                    <FooterTemplate>
+                                        @{
+                                            var aggregate = (context as AggregateTemplateContext);
+                                            <div>
+                                                <p>@aggregate.Sum</p>
+                                            </div>
+                                        }
+                                    </FooterTemplate>
+                                </GridAggregateColumn>
+                                <GridAggregateColumn Field=@nameof(InPutVatDto.DRAmount) Type="AggregateType.Sum" Format="@DecimalFormat">
+                                    <FooterTemplate>
+                                        @{
+                                            var aggregate = (context as AggregateTemplateContext);
+                                            <div>
+                                                <p>@aggregate.Sum</p>
+                                            </div>
+                                        }
+                                    </FooterTemplate>
+                                </GridAggregateColumn>
+                            </GridAggregateColumns>
+                        </GridAggregate>
+                    </GridAggregates>
+ *@                
+                </SfGrid>
+
+            </div>
+        </fieldset>
+        }
+        else
+        {
+            <SfGrid DataSource="@vatReports?.vatRegister"
+                    GridLines="GridLine.Both"
+                    AllowExcelExport="true"
+                    AllowPdfExport="true"
+                    AllowFiltering="true"
+                    AllowResizing="true"
+                    AllowPaging="true"
+                    Width="100%"
+                    @ref = "vatRegisterGrid"
+                    RowHeight="25">
+                <GridFilterSettings Type="Syncfusion.Blazor.Grids.FilterType.Excel" ShowFilterBarStatus="true"></GridFilterSettings>
+                <GridPageSettings PageSize="100"></GridPageSettings>
+                <GridColumns>
+                    <GridColumn Field="@nameof(VatRegisterDto.AccountName)" HeaderText=@Localizer["AccountName"] Width="110px"></GridColumn>
+                    <GridColumn Field="@nameof(VatRegisterDto.EffectiveDate)" HeaderText=@Localizer["EffectiveDate"] Width="110px" Format="dd/MM/yyyy"></GridColumn>
+                    <GridColumn Field="@nameof(VatRegisterDto.VNo)" HeaderText=@Localizer["VNo"] Width="80px"></GridColumn>
+                    <GridColumn Field="@nameof(VatRegisterDto.InvNo)" HeaderText=@Localizer["InvNo"] Width="80px"></GridColumn>
+                    <GridColumn Field="@nameof(VatRegisterDto.VType)" HeaderText=@Localizer["VType"] Width="80px"></GridColumn>
+                    <GridColumn Field="@nameof(VatRegisterDto.MainAccountName)" HeaderText=@Localizer["MainAccountName"] Width="100px"></GridColumn>
+                    <GridColumn Field="@nameof(VatRegisterDto.AccCode)" HeaderText=@Localizer["AccCode"] Width="100px"></GridColumn>
+                    <GridColumn Field="@nameof(VatRegisterDto.AccName)" HeaderText=@Localizer["AccName"] Width="100px"></GridColumn>
+                    <GridColumn Field="@nameof(VatRegisterDto.Emirates)" HeaderText=@Localizer["Emirates"] Width="80px"></GridColumn>
+                    <GridColumn Field="@nameof(VatRegisterDto.TRNNO)" HeaderText=@Localizer["TRNNO"] Width="80px"></GridColumn>
+                    <GridColumn Field="@nameof(VatRegisterDto.Description)" HeaderText=@Localizer["Description"] Width="80px"></GridColumn>
+
+                    <GridColumn Field="@nameof(VatRegisterDto.Debit)" HeaderText=@Localizer["Debit"] Width="80px" Format="@DecimalFormat"></GridColumn>
+                    <GridColumn Field="@nameof(VatRegisterDto.Credit)" HeaderText=@Localizer["Credit"] Width="80px" Format="@DecimalFormat"></GridColumn>
+                    <GridColumn Field="@nameof(VatRegisterDto.ModifiedDate)" HeaderText=@Localizer["ModifiedDate"] Width="80px" Format="dd/MM/yyyy"></GridColumn>
+                    <GridColumn Field="@nameof(VatRegisterDto.TAXAmt)" HeaderText=@Localizer["TAX Amount"] Width="80px" Format="@DecimalFormat"></GridColumn>
+                    <GridColumn Field="@nameof(VatRegisterDto.ExpTAXAmt)" HeaderText=@Localizer["ExpTAX Amount"] Width="80px" Format="@DecimalFormat"></GridColumn>
+                    <GridColumn Field="@nameof(VatRegisterDto.Diff)" HeaderText=@Localizer["Diff"] Width="80px" Format="@DecimalFormat"></GridColumn>
+                    <GridColumn Field="@nameof(VatRegisterDto.Discount)" HeaderText=@Localizer["Discount"] Width="80px" Format="@DecimalFormat"></GridColumn>
+                    <GridColumn Field="@nameof(VatRegisterDto.TranType)" HeaderText=@Localizer["TranType"] Width="80px"></GridColumn>
+
+
+
+                </GridColumns>
+@*                 <GridAggregates>
+                    <GridAggregate>
+                        <GridAggregateColumns>
+                            <GridAggregateColumn Field=@nameof(VatRegisterDto.Credit) Type="AggregateType.Sum" Format="@DecimalFormat">
+                                <FooterTemplate>
+                                    @{
+                                        var aggregate = (context as AggregateTemplateContext);
+                                        <div>
+                                            <p>@aggregate.Sum</p>
+                                        </div>
+                                    }
+                                </FooterTemplate>
+                            </GridAggregateColumn>
+                            <GridAggregateColumn Field=@nameof(VatRegisterDto.Debit) Type="AggregateType.Sum" Format="@DecimalFormat">
+                                <FooterTemplate>
+                                    @{
+                                        var aggregate = (context as AggregateTemplateContext);
+                                        <div>
+                                            <p>@aggregate.Sum</p>
+                                        </div>
+                                    }
+                                </FooterTemplate>
+                            </GridAggregateColumn>
+                            <GridAggregateColumn Field=@nameof(VatRegisterDto.Diff) Type="AggregateType.Sum" Format="@DecimalFormat">
+                                <FooterTemplate>
+                                    @{
+                                        var aggregate = (context as AggregateTemplateContext);
+                                        <div>
+                                            <p>@aggregate.Sum</p>
+                                        </div>
+                                    }
+                                </FooterTemplate>
+                            </GridAggregateColumn>
+                            <GridAggregateColumn Field=@nameof(VatRegisterDto.Discount) Type="AggregateType.Sum" Format="@DecimalFormat">
+                                <FooterTemplate>
+                                    @{
+                                        var aggregate = (context as AggregateTemplateContext);
+                                        <div>
+                                            <p>@aggregate.Sum</p>
+                                        </div>
+                                    }
+                                </FooterTemplate>
+                            </GridAggregateColumn>
+                            <GridAggregateColumn Field=@nameof(VatRegisterDto.TAXAmt) Type="AggregateType.Sum" Format="@DecimalFormat">
+                                <FooterTemplate>
+                                    @{
+                                        var aggregate = (context as AggregateTemplateContext);
+                                        <div>
+                                            <p>@aggregate.Sum</p>
+                                        </div>
+                                    }
+                                </FooterTemplate>
+                            </GridAggregateColumn>
+                            <GridAggregateColumn Field=@nameof(VatRegisterDto.ExpTAXAmt) Type="AggregateType.Sum" Format="@DecimalFormat">
+                                <FooterTemplate>
+                                    @{
+                                        var aggregate = (context as AggregateTemplateContext);
+                                        <div>
+                                            <p>@aggregate.Sum</p>
+                                        </div>
+                                    }
+                                </FooterTemplate>
+                            </GridAggregateColumn>
+                        </GridAggregateColumns>
+                    </GridAggregate>
+                </GridAggregates>
+ *@            
+            </SfGrid>
+        }
+    </div>
+</div>
+
+
+@code {
+    [Parameter]
+    public string? Register { get; set; }
+    private bool Isload = false;
+    private VatReportsDto? vatReports = new VatReportsDto();
+    private SfGrid<VatRegisterDto>? vatRegisterGrid;
+    private DateTime SDate { get; set; }
+    private DateTime EDate { get; set; }
+    private int BranchID, user, AccountID;
+    private string? GridHeight = "500px";
+    private string? DecimalFormat;
+    private bool isRegister = true;
+    protected override Task OnParametersSetAsync()
+    {
+        isRegister = isRegister == false ? true : false;
+        return base.OnParametersSetAsync();
+    }
+    protected async override Task OnInitializedAsync()
+    {
+        try
+        {
+            Isload = true;
+            BranchID = await sessionStorage.GetItemAsync<int>("BranchID");
+            user = await sessionStorage.GetItemAsync<int>("UserID");
+            AccountID = await sessionStorage.GetItemAsync<int>("AccountID");
+            // FinancialDateTime financialDate = await FinServ.GetFinancialDateTimeAsync(BranchID);
+            DateTime vatDate = await FinServ.GetVatDateTimeAsync(BranchID);
+            SDate = vatDate.AddDays(1);
+            EDate = SDate.AddMonths(3);
+            var dimension = await IJS.InvokeAsync<WindowDimension>("getWindowDimensions");
+            GridHeight = (dimension.Height - 180).ToString() + "px";
+            if (user == 0)
+            {
+                string HomeUrl = "";
+                HomeUrl = await _UserRights.GetURl("Logout", AccountID);
+                uriHelper.NavigateTo(HomeUrl);
+            }
+            else
+            {
+                DecimalFormat = _GlobalServ.GlobalCurrencyFormat;
+                if (DecimalFormat == null || DecimalFormat == "")
+                {
+
+                    DecimalFormat = "0.00";
+                }
+            }
+        }
+        catch(Exception e)
+        {
+            throw e;
+        }
+        finally
+        {
+            Isload = false;
+            await InvokeAsync(StateHasChanged);
+
+        }
+    }
+    public async Task Search_Click()
+    {
+        try
+        {
+            Isload = true;
+            string FD = SDate.Month.ToString("00") + "-" + SDate.Day.ToString("00") + "-" + SDate.Year;
+            string TD = EDate.Month.ToString("00") + "-" + EDate.Day.ToString("00") + "-" + EDate.Year;
+            vatReports = await vat.GetReports(FD, TD, BranchID);
+        }
+        catch (Exception e)
+        {            
+            throw e;
+        }
+        finally
+        {
+            Isload = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+    public async Task VATRegister_Click()
+    {
+        try
+        {
+            uriHelper.NavigateTo(uriHelper.BaseUri + "VatReports/Register");
+        }
+        catch (Exception e)
+        {
+            throw e;
+        }
+        finally
+        {
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+    public async Task ExcelExport()
+    {
+        if (vatRegisterGrid != null)
+        {
+            ExcelExportProperties PdfProperties = new ExcelExportProperties
+            {
+                    FileName = "VAT Register.xlsx",
+            };
+            await this.vatRegisterGrid.ExportToExcelAsync();
+        }
+
+    }
+    public async Task ExportPdf()
+    {
+        if(vatRegisterGrid != null)
+        {
+            PdfExportProperties PdfProperties = new PdfExportProperties
+            {
+                FileName = "VAT Register.pdf",
+                PageSize = PdfPageSize.A1
+            };
+            await this.vatRegisterGrid.ExportToPdfAsync();
+        }
+
+    }
+    // private void OnRowDataBoundInPutVat(RowDataBoundEventArgs<InPutVatDto> args)
+    // {
+    //     if (args.Data.Description == "Totals")
+    //     {
+    //         args.Row.AddStyle(new string[] { "font-weight: bold;" });
+    //     }
+    // }
+    private void OnQueryCellInfoInPutVat(QueryCellInfoEventArgs<InPutVatDto> args)
+    {
+        if (args.Data.Description == "Totals")
+        {
+            args.Cell.AddStyle(new string[] { "font-weight: bold;" });
+        }
+    }
+    private void OnQueryCellInfoOutPutVat(QueryCellInfoEventArgs<OutPutVatDto> args)
+    {
+        if (args.Data.Description == "Totals")
+        {
+            args.Cell.AddStyle(new string[] { "font-weight: bold;" });
+        }
+    }
+    // private void OnRowDataBoundOutPutVat(RowDataBoundEventArgs<OutPutVatDto> args)
+    // {
+    //     if (args.Data.Description == "Totals")
+    //     {
+    //         args.Row.AddStyle(new string[] { "font-weight: bold;" });
+    //     }
+    // }
+}
+

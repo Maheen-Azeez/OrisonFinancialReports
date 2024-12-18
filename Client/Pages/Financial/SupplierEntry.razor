@@ -1,0 +1,686 @@
+﻿@page "/SupplierEntry"
+@page "/SupplierEntry/{id}"
+
+@using OrisonMIS.Shared.Entities.Financial;
+ 
+@using Microsoft.AspNetCore.Components;
+ 
+@using OrisonMIS.Shared.Entities.Inventory;
+@using OrisonMIS.Shared.Entities.General;
+@using Syncfusion.Blazor.Buttons;
+@using Syncfusion.Blazor.Calendars;
+@using Syncfusion.Blazor.Popups;
+@using Syncfusion.Blazor.Inputs;
+@using Syncfusion.Blazor.DropDowns;
+@inject IJSRuntime IJS
+@*@inject LocalStorage localstorage*@
+@inject Blazored.SessionStorage.ISessionStorageService localStorage
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@inject OrisonMIS.Client.Logics.Contract.Inventory.IInvAccountManager _InvAccountManager
+@inject OrisonMIS.Client.Services.FinServices FinServ
+@inject OrisonMIS.Client.Logics.Contract.Inventory.IInvAccounts _IInvAccounts
+@inject OrisonMIS.Client.Services.FinServices FinServ
+@inject OrisonMIS.Client.Services.UserRightsService _UserRights
+
+
+<head>
+    <link href="css/Loading.css" rel="stylesheet" />
+    <style>
+        .form-control-sm {
+            height: 25px;
+            padding: 0.20313rem 0.5rem;
+            font-size: 0.8125rem;
+            line-height: 1.5;
+            border-radius: 0.15rem;
+        }
+
+        .form-control1 {
+            height: 35px;
+            width: 150px
+        }
+
+        .Custom {
+            height: 34px;
+        }
+
+        .MyIndexClass::after {
+            content: attr(data-index);
+        }
+
+        .my-grid .dxbs-filter-row th:nth-child(1) div {
+            display: none;
+        }
+
+        .e-grid .e-altrow {
+            background-color: #E8EEFA;
+        }
+
+        .e-grid .e-headercell {
+            background-image: linear-gradient( 0deg, #5f368d85, #B7D8DC);
+        }
+
+        .e-columnheader {
+            height: 30px;
+        }
+
+        .e-grid .e-filterbarcell, .e-grid .e-filterbarcelldisabled {
+            background-image: linear-gradient( 0deg, #5f368d85, #B7D8DC);
+        }
+
+        .e-grid .e-rowcell {
+            font-size: 12px;
+        }
+
+        .e-grid .e-headercelldiv {
+            border: 0 none;
+            display: block;
+            font-size: 12px;
+            font-weight: Bold;
+            height: 21px;
+            line-height: 21px;
+            margin: -5px;
+            overflow: hidden;
+            padding: 0 0.4em;
+            text-align: left;
+            text-transform: none;
+            -webkit-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            width: 200px;
+        }
+
+
+
+        .e-btn:disabled, .e-css.e-btn:disabled {
+            background-color: rgb(214 228 240 / 65%);
+            box-shadow: none;
+            color: #5f368d;
+            opacity: 0.65;
+            border-color: #5f368d;
+        }
+
+
+        .e-btn.e-primary:disabled, .e-css.e-btn.e-primary:disabled {
+            background-color: rgb(222 222 222 / 65%);
+            border-color: #000;
+            box-shadow: none;
+            color: #787878;
+        }
+
+        .e-btn:disabled, .e-css.e-btn:disabled {
+            background-color: rgb(249 251 252 / 65%);
+            border-color: #212529;
+            box-shadow: none;
+            color: #000;
+        }
+
+        .e-btn, .e-css.e-btn {
+            -webkit-tap-highlight-color: transparent;
+            background-color: #ffffff;
+            border-color: #5f368d;
+            box-shadow: none;
+            color: #231e1e;
+            transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+        }
+
+        .e-btn1 {
+            background-color: white;
+            border-color: #d7d8d9;
+            color: black;
+            width: 115px;
+            cursor: pointer;
+        }
+
+        .e-btn2 {
+            background-color: white;
+            border-color: #d7d8d9;
+            color: black;
+            width: 142px;
+            cursor: pointer;
+        }
+        /*    .e-btn.e-primary, .e-css.e-btn {
+            background-color: white;
+            border-color: black;
+            color: black;
+            width: 80px;
+        }*/
+
+        .e-disabled {
+            background: #fff;
+            color: #6c757d;
+        }
+
+        .e-grid {
+            border-color: #dee2e6;
+            width: 100%;
+        }
+
+        .e-pager div.e-parentmsgbar {
+            float: left;
+            padding-bottom: 11px;
+            padding-right: 4px;
+            padding-top: 0px;
+        }
+
+        .e-input-group:not(.e-success):not(.e-warning):not(.e-error), .e-input-group.e-control-wrapper:not(.e-success):not(.e-warning):not(.e-error) {
+            border-color: #d7d8d9;
+            width: 100%;
+            height: 34px;
+        }
+
+        .e-btn:hover, .e-css.e-btn:hover {
+            background-color: rgb(214 228 240 / 65%);
+            border-color: #5f368d;
+            box-shadow: none;
+            color: #787878;
+        }
+
+        .e-btn:focus, .e-css.e-btn:focus {
+            background-color: rgb(214 228 240 / 65%);
+            border-color: #5f368d;
+            box-shadow: none;
+            color: #787878;
+        }
+
+        .e-btn .e-btn-icon, .e-css.e-btn .e-btn-icon {
+            display: inline-block;
+            font-size: 14px;
+            margin-top: -2px;
+            vertical-align: middle;
+            width: 2em;
+        }
+    </style>
+
+    <style>
+        .e-btn.e-icon-btn, .e-css.e-btn.e-icon-btn {
+            padding: 4px 4px;
+            width: 40px;
+        }
+
+        .e-input-group.e-corner {
+            border-radius: 5px;
+        }
+
+        .e-upload-picture::before {
+            content: '\e724';
+            font-family: e-icons;
+        }
+
+        .e-input-group .e-input-group-icon:first-child, .e-input-group.e-control-wrapper .e-input-group-icon:first-child {
+            border-bottom-right-radius: 3px;
+            border-top-right-radius: 3px;
+        }
+        /*To increase the font-size and change font-family*/
+        .e-input-group.e-control-wrapper.e-corner {
+            font-family: "Helvetica Neue","Helvetica","Arial",sans-serif,"-apple-system","BlinkMacSystemFont";
+            font-size: 14px;
+            font-weight: 400;
+        }
+
+        .e-grid .e-gridheader {
+            border-bottom-color: #dee2e6;
+            border-top-color: #dee2e6;
+            color: #212529;
+            background-image: linear-gradient( 0deg, #5f368d85, #B7D8DC);
+        }
+            .e-grid .e-rowcell:not(.e-editedbatchcell):not(.e-updatedtd), .e-grid .e-detailrowcollapse:not(.e-editedbatchcell):not(.e-updatedtd), .e-grid .e-detailrowexpand:not(.e-editedbatchcell):not(.e-updatedtd), .e-grid .e-gridcontent .e-rowdragdrop:not(.e-editedbatchcell):not(.e-updatedtd), .e-grid .e-gridheader .e-rowdragdrop:not(.e-editedbatchcell):not(.e-updatedtd), .e-grid .e-emptyrow:not(.e-editedbatchcell):not(.e-updatedtd) {
+                color: #212529;
+                font-weight: 500;
+            }
+        .e-input-group:not(.e-success):not(.e-warning):not(.e-error):not(.e-float-icon-left).e-disabled, .e-input-group.e-float-icon-left:not(.e-success):not(.e-warning):not(.e-error).e-disabled .e-input-in-wrap, .e-input-group.e-control-wrapper:not(.e-success):not(.e-warning):not(.e-error):not(.e-float-icon-left).e-disabled, .e-input-group.e-control-wrapper.e-float-icon-left:not(.e-success):not(.e-warning):not(.e-error).e-disabled .e-input-in-wrap {
+            background: #fff;
+            color: #6c757d;
+            cursor: pointer;
+        }
+
+        .e-input[disabled], .e-input-group .e-input[disabled], .e-input-group.e-control-wrapper .e-input[disabled], .e-input-group.e-disabled, .e-input-group.e-disabled input, .e-input-group.e-disabled input.e-input, .e-input-group.e-disabled textarea, .e-input-group.e-disabled textarea.e-input, .e-input-group.e-control-wrapper.e-disabled, .e-input-group.e-control-wrapper.e-disabled input, .e-input-group.e-control-wrapper.e-disabled input.e-input, .e-input-group.e-control-wrapper.e-disabled textarea, .e-input-group.e-control-wrapper.e-disabled textarea.e-input, .e-float-input.e-disabled input, .e-float-input.e-disabled textarea, .e-float-input input[disabled], .e-float-input input.e-disabled, .e-float-input textarea[disabled], .e-float-input textarea.e-disabled, .e-float-input.e-control-wrapper.e-disabled input, .e-float-input.e-control-wrapper.e-disabled textarea, .e-float-input.e-control-wrapper input[disabled], .e-float-input.e-control-wrapper input.e-disabled, .e-float-input.e-control-wrapper textarea[disabled], .e-float-input.e-control-wrapper textarea.e-disabled, .e-input-group.e-control-wrapper.e-disabled span {
+            cursor: text;
+        }
+    </style>
+</head>
+<div style="text-align:right">
+    <label style="color:#4e348d;font-size:large;font-weight:bold;">Add Supplier</label>
+</div>
+<div style=" border-bottom: solid 1px #9673a5;padding-bottom:1%">
+    <SfButton IconCss="Icon add" Content="Add" @onclick="@New" Disabled="btnAdd"></SfButton>
+    <SfButton IconCss="Icon save" Content="Save" @onclick="@SaveAdd" Disabled="btnSave"></SfButton>
+    <SfButton IconCss="Icon edit" Content="Edit" @onclick="@SaveEdit" Disabled="btnEdit"></SfButton>
+    <SfButton IconCss="Icon back" Content="Back" @onclick="@btnRegister_Click"></SfButton>
+    @if (msg != "")
+    {
+        <label style="color:green;font-size:large;">@msg</label>
+    }
+</div>
+<div class="card-body1">
+    <div>
+        <div class="form-row" style="padding-top:0.3%;">
+            <div class="col-md-6 form-row">
+                <div class="col-md-3">
+                    <label for="Code" class="control-label">Code:</label>
+                </div>
+                <div class="col-md-4">
+                    <SfTextBox Id="Supplier_Code" @bind-Value="@Acc.AccountCode" CssClass="widthset"></SfTextBox>
+                </div>
+                <div class="col-md-5">
+                    <label>Inactive</label>
+                    <SfSwitch @bind-Checked="@Acc.Inactive"></SfSwitch>
+                </div>
+            </div>
+            <div class="col-md-6 form-row">
+                <div class="col-md-3">
+                    <label for="Type" class="control-label">Contact Person:</label>
+                </div>
+                <div class="col-md-9">
+                    <SfTextBox Id="Contact1" @bind-Value="@Acc.ContactPerson" CssClass="widthset"></SfTextBox>
+                </div>
+            </div>
+
+        </div>
+        <div class="form-row" style="padding-top:0.3%;">
+            <div class="col-md-6 form-row">
+                <div class="col-md-3">
+                    <label for="Customer_Name" class="control-label">Account Name:</label>
+                </div>
+                <div class="col-md-9">
+                    <SfTextBox Id="Supplier_Name" @bind-Value="@Acc.AccountName" CssClass="widthset"></SfTextBox>
+                </div>
+            </div>
+            <div class="col-md-6 form-row">
+                <div class="col-md-3">
+                    <label for="Mobile" class="control-label">Mobile Number:</label>
+                </div>
+                <div class="col-md-9">
+                    <SfTextBox Id="Mob_No" @bind-Value="@Acc.Mobile" CssClass="widthset"></SfTextBox>
+                </div>
+            </div>
+
+        </div>
+        <div class="form-row" style="padding-top:0.3%;">
+            <div class="col-md-6 form-row">
+                <div class="col-md-3">
+                    <label for="Address" class="control-label">Address 1:</label>
+                </div>
+                <div class="col-md-9">
+                    <SfTextBox Id="address" @bind-Value="@Acc.Address1" CssClass="widthset"></SfTextBox>
+                </div>
+            </div>
+            <div class="col-md-6 form-row">
+                <div class="col-md-3">
+                    <label for="Emirates" class="control-label">Emirates:</label>
+                </div>
+                <div class="col-md-9">
+                    <SfComboBox Placeholder="Select Emirate" CssClass="widthset"
+                                @bind-Value="@Acc.Emirates"
+                                DataSource="@Emirate" FilterType="FilterType.Contains">
+                    </SfComboBox>
+                </div>
+            </div>
+
+        </div>
+        <div class="form-row" style="padding-top:0.3%;">
+            <div class="col-md-6 form-row">
+                <div class="col-md-3">
+                    <label for="Email" class="control-label">Email Address:</label>
+                </div>
+                <div class="col-md-9">
+                    <SfTextBox Id="Email" @bind-Value="@Acc.Email" CssClass="widthset"></SfTextBox>
+                </div>
+            </div>
+            <div class="col-md-6 form-row">
+                <div class="col-md-3">
+                    <label for="Website" class="control-label">Website:</label>
+                </div>
+                <div class="col-md-9">
+                    <SfTextBox Id="Website" @bind-Value="@Acc.Website" CssClass="widthset"></SfTextBox>
+                </div>
+            </div>
+
+        </div>
+        <div class="form-row" style="padding-top:0.3%;">
+            <div class="col-md-6 form-row">
+                <div class="col-md-3">
+                    <label for="Telephone" class="control-label">Telephone:</label>
+                </div>
+                <div class="col-md-9">
+                    <SfTextBox Id="Tel_No" @bind-Value="@Acc.Phone1" CssClass="widthset"></SfTextBox>
+                </div>
+            </div>
+            <div class="col-md-6 form-row">
+                <div class="col-md-3">
+                    <label for="Fax" class="control-label">Fax Number:</label>
+                </div>
+                <div class="col-md-9">
+                    <SfTextBox Id="Fax_No" @bind-Value="@Acc.Fax" CssClass="widthset"></SfTextBox>
+                </div>
+            </div>
+
+        </div>
+        <div class="form-row" style="padding-top:0.3%;">
+            <div class="col-md-6 form-row">
+                <div class="col-md-3">
+                    <label for="PB" class="control-label">P.B.No:</label>
+                </div>
+                <div class="col-md-9">
+                    <SfTextBox Id="PBNo" @bind-Value="@Acc.PBNo" CssClass="widthset"></SfTextBox>
+                </div>
+            </div>
+            <div class="col-md-6 form-row">
+                <div class="col-md-3">
+                    <label for="currency" class="control-label">Currency:</label>
+                </div>
+                <div class="col-md-9">
+                    <SfComboBox Placeholder="Select Currency" CssClass="widthset"
+                                @bind-Value="@Acc.Currency"
+                                DataSource="@Currency" FilterType="FilterType.Contains">
+                    </SfComboBox>
+                </div>
+            </div>
+
+        </div>
+        <div class="form-row" style="padding-top:0.3%;">
+            <div class="col-md-6 form-row">
+                <div class="col-md-3">
+                    <label for="VATPlace" class="control-label">VAT Place:</label>
+                </div>
+                <div class="col-md-9">
+                    <SfComboBox Placeholder="VAT Place" CssClass="widthset"
+                                @bind-Value="@Acc.VATPlace"
+                                DataSource="@Emirate" FilterType="FilterType.Contains">
+                    </SfComboBox>
+
+                </div>
+            </div>
+            <div class="col-md-6 form-row">
+                <div class="col-md-3">
+                    <label for="TRNNo" class="control-label">TRNNo:</label>
+                </div>
+                <div class="col-md-9">
+                    <SfTextBox Id="TRNNo" @bind-Value="@Acc.TRNNo" CssClass="widthset"></SfTextBox>
+                </div>
+            </div>
+
+        </div>
+        <div class="form-row" style="padding-top:0.3%;">
+            <div class="col-md-6 form-row">
+                <div class="col-md-3">
+                    <label for="Country" class="control-label">Country:</label>
+                </div>
+                <div class="col-md-9">
+                    <SfComboBox Placeholder="Select Country" CssClass="widthset"
+                                @bind-Value="@Acc.Country"
+                                DataSource="@Country" FilterType="FilterType.Contains">
+                    </SfComboBox>
+                </div>
+            </div>
+            <div class="col-md-6 form-row">
+                <div class="col-md-3">
+                    <label for="Remarks" class="control-label">Remarks:</label>
+                </div>
+                <div class="col-md-9">
+                    <SfTextBox Id="Remarks" @bind-Value="@Acc.Remarks" CssClass="widthset"></SfTextBox>
+                </div>
+            </div>
+
+        </div>
+        <div class="form-row" style="padding-top: 0.3%; border-bottom: solid 1px #9673a5; padding-bottom: 1%">
+            <div class="col-md-4 form-row">
+                <div class="col-md-3">
+                    <label for="Credit" class="control-label">Allow Credit:</label>
+                </div>
+                <div class="col-md-9">
+                    <SfSwitch @bind-Checked="@Acc.AllowCredit"></SfSwitch>
+                </div>
+            </div>
+            <div class="col-md-4 form-row">
+                <div class="col-md-3">
+                    <label for="days" class="control-label">Credit Days:</label>
+                </div>
+                <div class="col-md-9">
+                    <SfTextBox Id="days" @bind-Value="@Acc.CreditDays" CssClass="widthset right-align"></SfTextBox>
+                </div>
+            </div>
+            <div class="col-md-4 form-row">
+                <div class="col-md-3">
+                    <label for="limit" class="control-label">Credit Limit:</label>
+                </div>
+                <div class="col-md-9">
+                    <SfTextBox Id="limit" @bind-Value="@Acc.CreditLimit" CssClass="widthset right-align"></SfTextBox>
+                </div>
+            </div>
+        </div>
+        <div class="form-row" style="visibility:hidden">
+            <div class="col-md-3">
+                <label for="Date" class="control-label">Date:</label>
+            </div>
+            <div class="col-md-9">
+                <SfDatePicker Id="Date" @bind-Value="@Acc.CreatedDate" Format="dd/MM/yyyy"
+                                  CssClass="widthset" Readonly="true"></SfDatePicker>
+            </div>
+            <div class="col-md-4 form-row">
+                <div class="col-md-3">
+                    <label for="Type" class="control-label">Type:</label>
+                </div>
+                <div class="col-md-9">
+                    @*<SfComboBox Placeholder="Select Type" CssClass="widthset"
+                                    @bind-Value="@Acc.Department"
+                                    DataSource="@(new List<string>() { "New", "Regular" })">
+                        </SfComboBox>*@
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+
+<SfDialog Height="20%" Width="20%" Target="#target" ShowCloseIcon="true" @bind-Visible="PopupVisible">
+    <DialogTemplates>
+        <Content>
+            <div>
+                <p style="color:green">
+                    @msg
+                </p>
+            </div>
+        </Content>
+    </DialogTemplates>
+    <DialogPositionData X="center" Y="top"></DialogPositionData>
+    <DialogAnimationSettings Effect="DialogEffect.Zoom"></DialogAnimationSettings>
+</SfDialog>
+
+@code
+{ [Parameter]
+    public string ID { get; set; }
+    bool PopupVisible { get; set; }
+
+    UserRights objUserRight = new UserRights();
+    dtInvAccounts Acc = new dtInvAccounts();
+    int user, BranchID, AccountID;
+    bool btnSave, btnEdit, btnAdd;
+    string mode, msg;
+    public IEnumerable<dtInvAccounts> dataSource;
+    public List<string> Company_Name;
+    public List<string> Currency;
+    public IList<string> Country;
+    object Code;
+    public IList<dtInvAccounts> AccountList = new List<dtInvAccounts>();
+    dtInvAccounts ObAccount = new dtInvAccounts();
+    public IList<string> Emirate;
+
+    protected override async Task OnInitializedAsync()
+    {
+        BranchID = await localStorage.GetItemAsync<int>("BranchID");
+        user = await localStorage.GetItemAsync<int>("UserID");
+        AccountID = await localStorage.GetItemAsync<int>("AccountID");
+        try
+        {
+            objUserRight = await _UserRights.GetUserRights(user, "Supplier Master", "PMS", BranchID);
+        }
+        catch (Exception ex)
+        {
+            msg = "Permission Denied..";
+            //PopupVisible = true;
+        }
+
+        if (user == 0)
+        {
+            NavigationManager.NavigateTo("Home");
+        }
+        else
+        {
+            if (objUserRight.AllowOpen == true)
+            {
+
+                if (ID == null)
+                {
+                    ID = "0";
+
+                    btnAdd = true;
+                    btnEdit = true;
+                    btnSave = false;
+                    Code = await _InvAccountManager.NextCode("Supplier");
+                    init_New();
+                }
+                else
+                {
+                    init_View();
+
+                }
+
+                Company_Name = await _InvAccountManager.GetCompanyName();
+                Currency = await _InvAccountManager.GetCurrency();
+                Country = await FinServ.GetMasterMisc("Country");
+                Emirate = await FinServ.GetMasterMisc("Emirates");
+                //dataSource = await _IInvAccounts.GetAccountsbyID(Convert.ToInt32(ID), "Supplier");
+                //Acc = dataSource.First();
+
+            }
+            else
+            {
+                msg = "Permission Denied";
+                //PopupVisible = true;
+            }
+
+        }
+    }
+
+
+    public async Task SaveAdd()
+    {
+        int go = 0;
+        Acc.AccCategory = "Supplier";
+        Acc.BranchID = BranchID;
+        if (mode.ToString() == "New")
+        {
+            Acc.Action = "New";
+            Acc.CreatedUser = user.ToString();
+            object v =await FinServ.GetScalar("declare @ID nvarchar(100) IF NOT EXISTS(SELECT id FROM accounts where accountcode='" + Acc.AccountCode + "') begin set @ID=NULL select @ID as ID end "); //'" + Acc.AccountCode + "'
+            if (v.ToString().Split(':')[1].Replace('"', ' ').Replace('}', ' ') != "null ")
+                go = 1;
+        }
+
+
+        else
+        {
+            Acc.Action = "Update";
+            Acc.ModifiedUser = user.ToString();
+        }
+        if (go == 0)
+        {
+            if(Acc.Currency == null)
+            {
+                msg = "Please choose a Currency and then continue";
+                //PopupVisible = true;
+                btnSave = false;
+            }
+            else
+            {
+                HttpResponseMessage response = await _InvAccountManager.SaveAdd(Acc);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    if (mode.ToString() == "New")
+                        msg = "Saved Successfully!";
+                    else msg = "Updated";
+                    //PopupVisible = true;
+                    init_View();
+                }
+                else
+                {
+                    msg = "Saving Incomplete.. something went wrong..";
+                    //PopupVisible = true;
+                    btnSave = false;
+                }
+            }
+
+        }
+        else
+        {
+            msg = "Code Already exists.. Pls change!";
+            //PopupVisible = true;
+        }
+
+
+
+    }
+    public async Task init_View()
+    {
+        dataSource = await _IInvAccounts.GetAccountsbyID(Convert.ToInt32(0), "Supplier");
+        Acc = dataSource.First();
+        btnAdd = false;
+        btnEdit = false;
+        btnSave = true;
+    }
+    protected void SaveEdit()
+    {
+        if (objUserRight.AllowEdit == true)
+        {
+
+            btnSave = false;
+            btnEdit = true;
+            btnAdd = true;
+            init_Edit();
+        }
+        else
+        {
+            msg = "Permission Denied";
+            //  PopupVisible = true;
+        }
+
+    }
+    public async void init_Edit()
+    {
+        mode = "Update";
+    }
+    protected void New()
+    {
+        if (objUserRight.AllowAdd == true)
+        {
+
+            btnSave = false;
+            btnEdit = true;
+            btnAdd = true;
+            init_New();
+        }
+        else
+        {
+            msg = "Permission Denied";
+            //PopupVisible = true;
+        }
+    }
+
+    public async Task init_New()
+    {
+        mode = "New";
+        Acc = new dtInvAccounts();
+        Acc.Inactive = false;
+
+        Acc.AccountCode =Code.ToString();
+
+    }
+    protected void btnRegister_Click()
+    {
+        NavigationManager.NavigateTo(NavigationManager.BaseUri+"SupplierRegister");
+    } }

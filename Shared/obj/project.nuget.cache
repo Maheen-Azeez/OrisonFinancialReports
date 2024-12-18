@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "dgSpecHash": "v6y8O03RPTCiwZ/3+OfMSvI/vqr6moPTlPXPmcG2Wix6QKRXUBhVHSUiG9MTl9ecxIjLDgdDnD+kpJHmvvEh2w==",
+  "success": true,
+  "projectFilePath": "E:\\OrisonMIS_WASM\\OrisonMIS\\OrisonMIS\\Shared\\OrisonMIS.Shared.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\mahee\\.nuget\\packages\\microsoft.windowsdesktop.app.ref\\6.0.29\\microsoft.windowsdesktop.app.ref.6.0.29.nupkg.sha512",
+    "C:\\Users\\mahee\\.nuget\\packages\\microsoft.netcore.app.ref\\6.0.29\\microsoft.netcore.app.ref.6.0.29.nupkg.sha512",
+    "C:\\Users\\mahee\\.nuget\\packages\\microsoft.aspnetcore.app.ref\\6.0.29\\microsoft.aspnetcore.app.ref.6.0.29.nupkg.sha512"
+  ],
+  "logs": []
+}

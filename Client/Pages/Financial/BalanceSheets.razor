@@ -1,0 +1,383 @@
+﻿@page "/BalanceSheets"
+@using OrisonMIS.Client.Services
+@using OrisonMIS.Shared.BoldReport
+@using OrisonMIS.Shared.Entities.Financial;
+@using Microsoft.AspNetCore.Components;
+@using OrisonMIS.Shared.Entities.General
+@using Syncfusion.Blazor.Buttons;
+@using Syncfusion.Blazor.TreeGrid;
+@using Syncfusion.Blazor.Grids;
+@using Syncfusion.Blazor.Calendars;
+@using Syncfusion.Blazor.Spinner;
+@using Syncfusion.Blazor.Data;
+@using Newtonsoft.Json;
+@using Newtonsoft.Json.Linq;
+@using System.Dynamic
+@inject NavigationManager uriHelper
+@inject HttpClient http
+@inject IJSRuntime IJS
+@inject OrisonMIS.Client.Logics.Contract.BoldReport.IBoldReportManager _BoldReport
+@inject OrisonMIS.Client.Logics.Contract.General.ICompanyManager _ICompanyManager
+@inject OrisonMIS.Client.Logics.Contract.Financial.IBS _IBS
+@inject OrisonMIS.Client.Logics.Contract.Inventory.IInvAccountManager _InvAccountManager
+@inject OrisonMIS.Client.Logics.Contract.Financial.IItemMasterManager _ItemMasterManager
+@inject OrisonMIS.Client.Logics.Contract.Inventory.IInvItemsManager _InvItemsManager
+@inject Blazored.SessionStorage.ISessionStorageService localStorage
+@inject OrisonMIS.Client.Services.FinServices FinServ
+@inject OrisonMIS.Client.Services.UserRightsService _UserRights
+@inject GlobalService _GlobalServ
+@inject FinancialDateTimeService FinancialDateService
+
+@using Microsoft.Extensions.Localization
+@using OrisonMIS.Client.Resources
+@inject IStringLocalizer<SfResources> Localizer
+<head>
+    <link href="css/OrisonSyncfusionStyles.css" rel="stylesheet" />
+</head>
+
+<div>
+    <div class="box-card-shadow">
+
+        <div class="row">
+            <div class="col-sm-12" style="padding-bottom:7px;">
+                <div class="row" style="padding-top: 5px;">
+                    <div class="col-md-8">
+                        <SfButton @onclick="ExcelExport" IconCss="Icon excel" CssClass="e-btn" Content=@Localizer["Excel"] IsPrimary="false" />
+                        <SfButton @onclick="ExportPdf" IconCss="Icon pdf" CssClass="e-btn" Content=@Localizer["PDF"] IsPrimary="false" />
+                    </div>
+                    <div class="col-md-4" style="text-align:end">
+                        <label class="page-heading">Balance Sheet</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="box-card-shadow">
+
+        <div class="row">
+            <div class="col-sm-12" style="padding-bottom:8px;">
+                <div class="row">
+                    <div class="col-md-12">
+                        <SfDatePicker @bind-Value="@FinancialDateService.StartDate" Format="dd/MM/yyyy" title="From Date" Width="140px" Placeholder=@Localizer["From Date"]></SfDatePicker>
+                        <SfDatePicker @bind-Value="@FinancialDateService.EndDate" Format="dd/MM/yyyy" title="To Date" Width="140px" Placeholder=@Localizer["To Date"]></SfDatePicker>
+                        <SfCheckBox @bind-Checked="@Detailed" @onchange="onChange">@Localizer["Detailed"]</SfCheckBox>
+                        <SfCheckBox @bind-Checked="@allBranches" Label=@Localizer["All Branches"]></SfCheckBox>
+                        <SfButton IconCss="Icon search" @onclick="@Search_Click" title=@Localizer["Search"] CssClass="widthset"></SfButton>
+                        <SfButton IconCss="Icon filter" CssClass="e-btn4" Content=" " @onclick="@Clear_Click" HtmlAttributes="@ClearFilter"></SfButton>
+                        @if (Isload)
+                        {
+                            <img src="gif/loading-waiting.gif" style="padding-left:2px; width: 20px; height: 20px;" />
+                        }
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="box-card-shadow">
+        <div class="col-md-12 col-sm-12">
+            <div class="row" style="padding-top:0px;">
+                <div class="table-responsive" style="position: relative; min-height:600px; min-width: 300px ">
+                    @if (Stmt == null)
+                    {
+                        <p><em>No data...</em></p>
+                    }
+                    else
+                    {
+                        <SfTreeGrid DataSource="@Stmt"
+                                    GridLines="GridLine.Both"
+                                    Height="550"
+                                    Width="100%"
+                                    AllowExcelExport="true"
+                                    IdMapping="ID"
+                                    AllowSorting="true"
+                                    AllowFiltering="true"
+                                    ParentIdMapping="ParentID"
+                                    AllowPdfExport="true"
+                                    @ref="TreeGrid"
+                                    RowHeight="18">
+                            <TreeGridFilterSettings Type="Syncfusion.Blazor.TreeGrid.FilterType.Excel"></TreeGridFilterSettings>
+
+                            <TreeGridSortSettings>
+                                <TreeGridSortColumns>
+                                    <TreeGridSortColumn Field="SortField" Direction="Syncfusion.Blazor.Grids.SortDirection.Ascending"></TreeGridSortColumn>
+                                    <TreeGridSortColumn Field="ParentLevel" Direction="Syncfusion.Blazor.Grids.SortDirection.Ascending"></TreeGridSortColumn>
+                                </TreeGridSortColumns>
+                            </TreeGridSortSettings>
+
+                            <TreeGridColumns>
+                                <TreeGridColumn Field="@nameof(BalanceSheet.AccountCode)" HeaderText=@Localizer["Account Code"] Width="20%" HeaderTextAlign="TextAlign.Center">
+                                    <Template>
+                                        @{
+                                            var AccName = (context as BalanceSheet);
+                                            var Name = AccName.AccountCode;
+                                            @if (AccName.AccountName == "     Opening Balance Adjustment")
+                                            {
+                                                <span>@Name</span>
+                                            }
+                                            else if (AccName.ParentLevel == 1 || AccName.VoucherEntry == 0)
+                                            {
+                                                <span style="font-weight:bold">@Name</span>
+                                            }
+                                            else
+                                            {
+                                                <span>@Name</span>
+                                            }
+
+                                        }
+                                    </Template>
+                                </TreeGridColumn>
+                                <TreeGridColumn Field="AccountName" HeaderText=@Localizer["Account Name"] Width="70%" HeaderTextAlign="TextAlign.Center">
+                                    <Template>
+                                        @{
+                                            var AccName = (context as BalanceSheet);
+                                            var Name = AccName.AccountName.Trim();
+                                            @if (AccName.AccountName == "     Opening Balance Adjustment")
+                                            {
+                                                <span>@Name</span>
+                                            }
+                                            else if (AccName.ParentLevel == 1 || AccName.VoucherEntry == 0)
+                                            {
+                                                <span style="font-weight:bold">@Name</span>
+                                            }
+                                            else
+                                            {
+                                                <span>@Name</span>
+                                            }
+
+                                        }
+                                    </Template>
+                                </TreeGridColumn>
+
+                                <TreeGridColumn Field="@nameof(BalanceSheet.Amount)" HeaderText=@Localizer["Amount"] Width="15%" TextAlign="TextAlign.Right" HeaderTextAlign="TextAlign.Center" Format="@DecimalFormat">
+                                    <Template>
+                                        @{
+                                            var AccName = (context as BalanceSheet);
+                                            string Value = Convert.ToDecimal(AccName.Amount).ToString("N2");
+                                            @if (AccName.AccountName == "     Opening Balance Adjustment")
+                                            {
+                                                <span>@Value</span>
+                                            }
+                                            else if (AccName.ParentLevel == 1 || AccName.VoucherEntry == 0)
+                                            {
+                                                <span style="font-weight:bold">@Value</span>
+                                            }
+                                            else
+                                            {
+                                                <span>@Value</span>
+                                            }
+
+                                        }
+                                    </Template>
+                                </TreeGridColumn>
+                            </TreeGridColumns>
+                            <TreeGridAggregates>
+                                <TreeGridAggregate>
+                                    <TreeGridAggregateColumns>
+                                        <TreeGridAggregateColumn Field="Debit" Type="Syncfusion.Blazor.Grids.AggregateType.Sum" Format="@DecimalFormat">
+                                            <FooterTemplate>
+                                                @{
+                                                    var Maxvalue = (context as Syncfusion.Blazor.Grids.AggregateTemplateContext);
+                                                    <div>
+                                                        <p>@Maxvalue.Sum</p>
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </TreeGridAggregateColumn>
+                                        <TreeGridAggregateColumn Field="Credit" Type="Syncfusion.Blazor.Grids.AggregateType.Sum" Format="@DecimalFormat">
+                                            <FooterTemplate>
+                                                @{
+                                                    var Minvalue = (context as Syncfusion.Blazor.Grids.AggregateTemplateContext);
+                                                    <div>
+                                                        <p> @Minvalue.Sum</p>
+                                                    </div>
+                                                }
+                                            </FooterTemplate>
+                                        </TreeGridAggregateColumn>
+                                    </TreeGridAggregateColumns>
+                                </TreeGridAggregate>
+                            </TreeGridAggregates>
+                        </SfTreeGrid>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+    @code
+{
+        DateTime SDate = DateTime.Now, EDate = DateTime.Now;
+        private bool Detailed = false;
+        public int ID, user, BranchID, AccountID;
+        public string Name, FD, TD, Finyear, Remarks;
+        public bool Isload = false;
+        private SfTreeGrid<BalanceSheet> TreeGrid;
+        public IList<BalanceSheet> dataSource { get; set; }
+        private IEnumerable<BalanceSheet> TreeGridData { get; set; }
+        IList<BalanceSheet> Stmt = new List<BalanceSheet>();
+        public Query LocalDataQueryMemberItem { get; set; } = new Query().Take(20);
+        bool allBranches = false;
+        public string? DecimalFormat { get; set; }
+        private Dictionary<string, object> ClearFilter = new Dictionary<string, object>()
+        {
+            { "title", "Clear Filter"}
+        };
+        protected override async Task OnInitializedAsync()
+        {
+            BranchID = await localStorage.GetItemAsync<int>("BranchID");
+            user = await localStorage.GetItemAsync<int>("UserID");
+            AccountID = await localStorage.GetItemAsync<int>("AccountID");
+            await FinancialDateService.InitializeDates();
+
+            if (user == 0)
+            {
+                string HomeUrl = "";
+                HomeUrl = await _UserRights.GetURl("Logout", AccountID);
+                uriHelper.NavigateTo(HomeUrl);
+            }
+            else
+            {
+                // var result = await FinServ.GetScalar("Select Entryfrom from company where id =" + BranchID);
+                // result = "{Scalar:" + result + "}";
+                // var ob = JObject.Parse(result.ToString());
+                // var dt = ob["Scalar"]["Entryfrom"].ToString();
+                // SDate = Convert.ToDateTime(dt);
+                // FinancialDateTime financialDate = await FinServ.GetFinancialDateTimeAsync(BranchID);
+                // SDate = financialDate.startDate;
+                // EDate = financialDate.endDate;
+                DecimalFormat = _GlobalServ.GlobalCurrencyFormat;
+                if (DecimalFormat == null || DecimalFormat == "")
+                {
+
+                    DecimalFormat = "0.00";
+                }
+                await base.OnInitializedAsync();
+            }
+
+            await InvokeAsync(StateHasChanged);
+        }
+        public async Task Search_Click()
+        {
+            try
+            {
+                Isload = true;
+                SDate = FinancialDateService.StartDate;
+                EDate = FinancialDateService.EndDate;
+                FD = SDate.Month.ToString("00") + "-" + SDate.Day.ToString("00") + "-" + SDate.Year;
+                TD = EDate.Month.ToString("00") + "-" + EDate.Day.ToString("00") + "-" + EDate.Year;
+                var str = await FinServ.GetScalar("select value from Settings where category='Costofsales'");
+                str = "{Scalar:" + str + "}";
+                var ob = JObject.Parse(str.ToString());
+                var dt = ob["Scalar"]["value"].ToString();
+                if (dt.ToString() == "True")
+                {
+                    dataSource = (await _IBS.Show(allBranches == true ? 0 : BranchID, FD.ToString(), TD.ToString(), "BS")).ToList();
+                    foreach (var item in dataSource)
+                    {
+                        if (item.ID == -1)
+                        { item.ID = 0; }
+                        if (item.ParentID == -1 || item.ParentID == 0)
+                        { item.ParentID = null; }
+                    }
+                }
+                else
+                {
+                    dataSource = (await _IBS.Show(BranchID, FD.ToString(), TD.ToString(), "BSH")).ToList();
+                    foreach (var item in dataSource)
+                    {
+                        if (item.ID == -1)
+                        { item.ID = 0; }
+                        if (item.ParentID == -1 || item.ParentID == 0)
+                        { item.ParentID = null; }
+                    }
+                }
+                if (Detailed == true)
+                    Stmt = dataSource.ToList();
+                else
+                    Stmt = dataSource.Where(x => x.VoucherEntry == 0 && x.ShowRow == true).ToList();
+
+                Isload = false;
+                await InvokeAsync(StateHasChanged);
+            }
+            catch (Exception ex)
+            {
+                Isload = false;
+                Console.WriteLine(ex.Message);
+            }
+
+        }
+        private void onChange(Microsoft.AspNetCore.Components.ChangeEventArgs args)
+        {
+
+            if (dataSource != null)
+            {
+                if (Detailed == true)
+                    Stmt = dataSource.ToList();
+                else
+                    Stmt = dataSource.Where(x => x.VoucherEntry == 0 && x.ShowRow == true).ToList();
+            }
+
+
+        }
+        public async Task ExcelExport()
+        {
+            await this.TreeGrid.ExportToExcelAsync();
+
+        }
+        public List<ExpandoObject> companyDetails = new List<ExpandoObject>();
+
+        public async Task ExportPdf()
+        {
+            try
+            {
+                Isload = true;
+                companyDetails = new List<ExpandoObject>();
+                companyDetails = await _ICompanyManager.GetCompanyDetails(BranchID);
+                DataSource dt = new DataSource
+                {
+                    Parameters = new List<JSReportParameter>
+                    {
+                        new JSReportParameter
+                        {
+                            Name = "DateFrom",
+                            Values = new List<string> { SDate.ToString() }
+                        },
+                        new JSReportParameter
+                        {
+                            Name = "DateUpto",
+                            Values = new List<string> { EDate.ToString() }
+                        }
+                    }
+                };
+                dt.DataSet1 = new List<ExpandoObject>();
+                dt.DataSet2 = new List<ExpandoObject>();
+                dt.ReportName = "Balance Sheet";
+                dt.DataSet1 = JsonConvert.DeserializeObject<List<ExpandoObject>>(JsonConvert.SerializeObject(Stmt));
+                dt.DataSet2 = JsonConvert.DeserializeObject<List<ExpandoObject>>(JsonConvert.SerializeObject(companyDetails));
+                if (dt.ReportName != "")
+                {
+                    var Result = await _BoldReport.GetReport(dt);
+                    var filename = dt.ReportName + ".pdf";
+                await IJS.InvokeVoidAsync("jsSaveAsFile", filename, Convert.ToBase64String(Result.ToArray()));
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+            finally
+            {
+                Isload = false;
+            }
+
+        }
+    public async Task Clear_Click()
+    {
+        await TreeGrid!.SearchAsync("");
+        await TreeGrid.ClearFilteringAsync();
+
+    }
+}

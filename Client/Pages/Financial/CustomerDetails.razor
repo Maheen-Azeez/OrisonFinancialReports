@@ -1,0 +1,212 @@
+﻿@page "/CustomerDetails"
+@page "/CustomerDetails/{Query}"
+@using OrisonMIS.Shared.Entities.Financial;
+@using OrisonMIS.Shared.Entities.General;
+@using Microsoft.AspNetCore.Components;
+@using OrisonMIS.Shared.Entities.Inventory;
+@using Syncfusion.Blazor.Buttons;
+@using Syncfusion.Blazor.Grids;
+@using Syncfusion.Blazor.Calendars;
+@using Syncfusion.Blazor.Spinner;
+@using Syncfusion.Blazor.Data
+@inject NavigationManager uriHelper
+@inject HttpClient http
+@inject IJSRuntime IJS
+@inject OrisonMIS.Client.Logics.Contract.Financial.IPartyRegister _IParty
+@inject OrisonMIS.Client.Logics.Contract.Inventory.IInvAccountManager _InvAccountManager
+@inject OrisonMIS.Client.Logics.Contract.Financial.IItemMasterManager _ItemMasterManager
+@inject OrisonMIS.Client.Logics.Contract.Inventory.IInvItemsManager _InvItemsManager
+@inject Blazored.SessionStorage.ISessionStorageService localStorage
+@inject OrisonMIS.Client.Services.FinServices FinServ
+@inject OrisonMIS.Client.Services.UserRightsService _UserRights
+
+<head>
+    <link href="css/OrisonSyncfusionStyles.css" rel="stylesheet" />
+</head>
+
+<div>
+    <div class="box-card-shadow">
+
+        <div class="row">
+            <div class="col-sm-12" style="padding-bottom:7px;">
+                <div class="row" style="padding-top: 4px;">
+                    <div class="col-md-9">
+                        <SfButton @onclick="ExcelExport" IconCss="Icon excel" CssClass="e-btn" Content="Excel" IsPrimary="false" />
+                        <SfButton @onclick="ExportPdf" IconCss="Icon pdf" CssClass="e-btn" Content="pdf" IsPrimary="false" />
+                        <SfDatePicker @bind-Value="@SDate" Format="dd/MM/yyyy" title="From Date" Width="120px" Placeholder="From Date"></SfDatePicker>
+                        <SfDatePicker @bind-Value="@EDate" Format="dd/MM/yyyy" title="To Date" Width="120px" Placeholder="To Date"></SfDatePicker>
+                        <SfCheckBox @bind-Checked="@All">All</SfCheckBox>
+                        <SfCheckBox @bind-Checked="@Active">Active</SfCheckBox>
+                        <SfCheckBox @bind-Checked="@InActive">InActive</SfCheckBox>
+                        @if (Isload == false)
+                        {
+                            <SfButton IconCss="Icon search" @onclick="@Search_Click" title="Search" CssClass="widthset"></SfButton>
+                        }
+                        else
+                        {
+                            <SfSpinner Size="20" Type="Syncfusion.Blazor.Spinner.SpinnerType.Bootstrap5" Visible="true"></SfSpinner>
+                        }
+                    </div>
+                    <div class="col-md-3" style="text-align:end">
+                        <label style="color:#014164;font-size:large;font-weight:bold;">CUSTOMER DETAILS</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div>
+        <div class="col-md-12 col-sm-12">
+            <div class="row" style="padding-top:0px;">
+                <div class="table-responsive" style="position: relative; min-height:600px; min-width: 300px ">
+                    @if (Stmt == null)
+                    {
+                        <p><em>No data...</em></p>
+                    }
+                    else
+                    {
+                        <SfGrid DataSource="@Stmt"
+                                Height="550"
+                                Width="100%"
+                                GridLines="GridLine.Both"
+                                AllowExcelExport="true"
+                                AllowPdfExport="true"
+                                @ref="Grid"
+                                FrozenColumns="1"
+                                RowHeight="25">
+                            <GridEvents OnToolbarClick="Toolbarclick" TValue="PartyRegister" RowSelected="OnRowSelected"></GridEvents>
+                            <GridColumns>
+                                <GridColumn Field="@nameof(PartyRegister.AccountCode)" HeaderText="Acc. Code" Width="10%"></GridColumn>
+                                <GridColumn Field="@nameof(PartyRegister.AccountName)" HeaderText="Customer Name" Width="40%"></GridColumn>
+                                <GridColumn Field="@nameof(PartyRegister.Type)" HeaderText="Type" Width="20%"></GridColumn>
+                                <GridColumn Field="@nameof(PartyRegister.Status)" HeaderText="Status" Width="10%"></GridColumn>
+                                <GridColumn Field="@nameof(PartyRegister.Balance)" HeaderText="Balance" Width="10%" Format="N2"></GridColumn>
+                            </GridColumns>
+                        </SfGrid>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code
+{
+    [Parameter]
+    public string Query { get; set; }
+    DateTime SDate = DateTime.Now, EDate = DateTime.Now;
+    int user, BranchID, AccountID, ID;
+    string FD, TD, Name, Remarks;
+    private bool All = false, Active = false, InActive = false;
+    public bool Isload = false;
+    SfGrid<PartyRegister> Grid { get; set; }
+    public IList<PartyRegister> dataSource { get; set; }
+    private IEnumerable<PartyRegister> TreeGridData { get; set; }
+    public IList<dtInvAccounts> AccList = new List<dtInvAccounts>();
+    dtInvAccounts ObAcc = new dtInvAccounts();
+    IList<PartyRegister> Stmt = new List<PartyRegister>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        BranchID = await localStorage.GetItemAsync<int>("BranchID");
+        user = await localStorage.GetItemAsync<int>("UserID");
+        AccountID = await localStorage.GetItemAsync<int>("AccountID");
+        if (user == 0)
+        {
+            //uriHelper.NavigateTo("Home");
+            string HomeUrl = "";
+            HomeUrl = await _UserRights.GetURl("Logout", AccountID);
+            uriHelper.NavigateTo(HomeUrl);
+        }
+        else
+        {
+            await base.OnInitializedAsync();
+        }
+        int year = DateTime.Now.Year;
+        SDate = new DateTime(year, 1, 1);
+        if (Query != null)
+        {
+            //Query = "31,Customer";
+            var parm = Query.Split(',');
+            dataSource = (await _IParty.Show(parm[1], Convert.ToInt32(parm[0]))).ToList();
+            if (Active == true)
+                dataSource = dataSource.Where(x => x.Status == "Active").ToList();
+            else if (InActive == true)
+                dataSource = dataSource.Where(x => x.Status == "InActive").ToList();
+            Stmt = dataSource.ToList();
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+    public async Task Search_Click()
+    {
+        Isload = true;
+        // string URL = _UserRights.GetBaseUrl();
+        // if (URL.Contains("localhost"))
+        // {
+        //     FD = SDate.Day.ToString("00") + "-" + SDate.Month.ToString("00") + "-" + SDate.Year;
+        //     TD = EDate.Day.ToString("00") + "-" + EDate.Month.ToString("00") + "-" + EDate.Year;
+        // }
+        // else
+        // {
+            FD = SDate.Month.ToString("00") + "-" + SDate.Day.ToString("00") + "-" + SDate.Year;
+            TD = EDate.Month.ToString("00") + "-" + EDate.Day.ToString("00") + "-" + EDate.Year;
+        //}
+        dataSource = (await _IParty.Show("Customer", BranchID)).ToList();
+        if (Active == true)
+            dataSource = dataSource.Where(x => x.Status == "Active").ToList();
+        else if (InActive == true)
+            dataSource = dataSource.Where(x => x.Status == "InActive").ToList();
+        Stmt = dataSource.ToList();
+        Isload = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async Task Toolbarclick(Syncfusion.Blazor.Navigations.ClickEventArgs args)
+    {
+        if (args.Item.Text == "PDF Export")
+        {
+            await this.Grid.ExportToPdfAsync();
+        }
+        else if (args.Item.Text == "Excel Export")
+        {
+            await this.Grid.ExportToExcelAsync();
+        }
+        else if (args.Item.Text == "CSV Export")
+        {
+            await this.Grid.ExportToCsvAsync();
+        }
+    }
+    public void OnRowSelected(RowSelectEventArgs<PartyRegister> args)
+    {
+        if (args != null)
+        {
+            var ID = args.Data.ID;
+            // string URL = _UserRights.GetBaseUrl();
+            // if (URL.Contains("localhost"))
+            // {
+            //     FD = SDate.Day.ToString("00") + "-" + SDate.Month.ToString("00") + "-" + SDate.Year;
+            //     TD = EDate.Day.ToString("00") + "-" + EDate.Month.ToString("00") + "-" + EDate.Year;
+            // }
+            // else
+            // {
+                FD = SDate.Month.ToString("00") + "-" + SDate.Day.ToString("00") + "-" + SDate.Year;
+                TD = EDate.Month.ToString("00") + "-" + EDate.Day.ToString("00") + "-" + EDate.Year;
+            //}
+            //31,01-09-2020,31-12-2020,214147
+            var Query = BranchID + "," + FD + "," + TD + "," + ID;
+            string url = "Billwise/" + Query;
+            IJS.InvokeAsync<object>("open", url, "_blank");
+        }
+    }
+    public void ExcelExport()
+    {
+        ExcelExportProperties ExcelProperties = new ExcelExportProperties();
+        ExcelProperties.FileName = "CustomerDetails.xlsx";
+        this.Grid.ExportToExcelAsync(ExcelProperties);
+    }
+    public void ExportPdf()
+    {
+        PdfExportProperties PdfProperties = new PdfExportProperties();
+        PdfProperties.FileName = "CustomerDetails.pdf";
+        this.Grid.ExportToPdfAsync(PdfProperties);
+    }
+}

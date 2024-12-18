@@ -1,0 +1,368 @@
+﻿@page "/BalanceSheetHistory"
+@using OrisonMIS.Shared.Entities.Financial;
+@using Microsoft.AspNetCore.Components;
+ 
+@using OrisonMIS.Shared.Entities.Inventory;
+@using OrisonMIS.Shared.Entities.General;
+@using Syncfusion.Blazor.Buttons;
+@using Syncfusion.Blazor.TreeGrid;
+@using Syncfusion.Blazor.Grids;
+@using Syncfusion.Blazor.Calendars;
+@using Syncfusion.Blazor.Inputs;
+@using Syncfusion.Blazor.Spinner;
+@using Syncfusion.Blazor.DropDowns;
+@inject NavigationManager uriHelper
+@inject HttpClient http
+@inject OrisonMIS.Client.Logics.Contract.Financial.IStmt _IStmt
+@inject OrisonMIS.Client.Logics.Contract.Inventory.IInvAccountManager _InvAccountManager
+@inject OrisonMIS.Client.Logics.Contract.Financial.IItemMasterManager _ItemMasterManager
+@inject OrisonMIS.Client.Logics.Contract.Inventory.IInvItemsManager _InvItemsManager
+@inject Blazored.SessionStorage.ISessionStorageService localStorage
+@inject OrisonMIS.Client.Services.FinServices FinServ
+@inject OrisonMIS.Client.Services.UserRightsService _UserRights
+
+
+<head>
+    <link href="css/Loading.css" rel="stylesheet" />
+    <style>
+        .fontBold {
+            font-weight: bold;
+            text-align: right;
+        }
+
+        .container-fluid {
+            width: 100%;
+            margin-right: auto;
+            margin-left: auto;
+        }
+
+        .View {
+            color: dodgerblue;
+            background-color: white;
+        }
+    </style>
+    <style>
+        .form-control-sm {
+            height: 25px;
+            padding: 0.20313rem 0.5rem;
+            font-size: 0.8125rem;
+            line-height: 1.5;
+            border-radius: 0.15rem;
+        }
+
+        .form-control1 {
+            height: 35px;
+            width: 150px
+        }
+
+        .Custom {
+            height: 34px;
+        }
+
+        .MyIndexClass::after {
+            content: attr(data-index);
+        }
+
+        .my-grid .dxbs-filter-row th:nth-child(1) div {
+            display: none;
+        }
+
+        .e-grid .e-altrow {
+            background-color: #E8EEFA;
+        }
+
+        .e-grid .e-headercell {
+            background-image: linear-gradient( 0deg, #5f368d85, #B7D8DC);
+        }
+
+        .e-columnheader {
+            height: 30px;
+        }
+
+        .e-grid .e-filterbarcell, .e-grid .e-filterbarcelldisabled {
+            background-image: linear-gradient( 0deg, #5f368d85, #B7D8DC);
+        }
+
+        .e-grid .e-rowcell {
+            font-size: 12px;
+        }
+
+        .e-grid .e-headercelldiv {
+            border: 0 none;
+            display: block;
+            font-size: 12px;
+            font-weight: Bold;
+            height: 21px;
+            line-height: 21px;
+            margin: -5px;
+            overflow: hidden;
+            padding: 0 0.4em;
+            text-align: left;
+            text-transform: none;
+            -webkit-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            width: 200px;
+        }
+
+
+
+        .e-btn:disabled, .e-css.e-btn:disabled {
+            background-color: rgb(214 228 240 / 65%);
+            box-shadow: none;
+            color: #5f368d;
+            opacity: 0.65;
+            border-color: #5f368d;
+        }
+
+
+        .e-btn.e-primary:disabled, .e-css.e-btn.e-primary:disabled {
+            background-color: rgb(222 222 222 / 65%);
+            border-color: #000;
+            box-shadow: none;
+            color: #787878;
+        }
+
+        .e-btn:disabled, .e-css.e-btn:disabled {
+            background-color: rgb(249 251 252 / 65%);
+            border-color: #212529;
+            box-shadow: none;
+            color: #000;
+        }
+
+        .e-btn, .e-css.e-btn {
+            -webkit-tap-highlight-color: transparent;
+            background-color: #ffffff;
+            border-color: #5f368d;
+            box-shadow: none;
+            color: #231e1e;
+            transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+        }
+
+        .e-btn1 {
+            background-color: white;
+            border-color: #d7d8d9;
+            color: black;
+            width: 115px;
+            cursor: pointer;
+        }
+
+        .e-btn2 {
+            background-color: white;
+            border-color: #d7d8d9;
+            color: black;
+            width: 142px;
+            cursor: pointer;
+        }
+        /*    .e-btn.e-primary, .e-css.e-btn {
+            background-color: white;
+            border-color: black;
+            color: black;
+            width: 80px;
+        }*/
+
+        .e-disabled {
+            background: #fff;
+            color: #6c757d;
+        }
+
+        .e-grid {
+            border-color: #dee2e6;
+            width: 100%;
+        }
+
+        .e-pager div.e-parentmsgbar {
+            float: left;
+            padding-bottom: 11px;
+            padding-right: 4px;
+            padding-top: 0px;
+        }
+
+        .e-input-group:not(.e-success):not(.e-warning):not(.e-error), .e-input-group.e-control-wrapper:not(.e-success):not(.e-warning):not(.e-error) {
+            border-color: #d7d8d9;
+            width: 100%;
+            height: 34px;
+        }
+
+        .e-btn:hover, .e-css.e-btn:hover {
+            background-color: rgb(214 228 240 / 65%);
+            border-color: #5f368d;
+            box-shadow: none;
+            color: #787878;
+        }
+
+        .e-btn:focus, .e-css.e-btn:focus {
+            background-color: rgb(214 228 240 / 65%);
+            border-color: #5f368d;
+            box-shadow: none;
+            color: #787878;
+        }
+
+        .e-btn .e-btn-icon, .e-css.e-btn .e-btn-icon {
+            display: inline-block;
+            font-size: 14px;
+            margin-top: -2px;
+            vertical-align: middle;
+            width: 2em;
+        }
+    </style>
+
+    <style>
+        .e-btn.e-icon-btn, .e-css.e-btn.e-icon-btn {
+            padding: 4px 4px;
+            width: 40px;
+        }
+
+        .e-input-group.e-corner {
+            border-radius: 5px;
+        }
+
+        .e-upload-picture::before {
+            content: '\e724';
+            font-family: e-icons;
+        }
+
+        .e-input-group .e-input-group-icon:first-child, .e-input-group.e-control-wrapper .e-input-group-icon:first-child {
+            border-bottom-right-radius: 3px;
+            border-top-right-radius: 3px;
+        }
+        /*To increase the font-size and change font-family*/
+        .e-input-group.e-control-wrapper.e-corner {
+            font-family: "Helvetica Neue","Helvetica","Arial",sans-serif,"-apple-system","BlinkMacSystemFont";
+            font-size: 14px;
+            font-weight: 400;
+        }
+
+        .e-grid .e-gridheader {
+            border-bottom-color: #dee2e6;
+            border-top-color: #dee2e6;
+            color: #212529;
+            background-image: linear-gradient( 0deg, #5f368d85, #B7D8DC);
+        }
+
+            .e-grid .e-rowcell:not(.e-editedbatchcell):not(.e-updatedtd), .e-grid .e-detailrowcollapse:not(.e-editedbatchcell):not(.e-updatedtd), .e-grid .e-detailrowexpand:not(.e-editedbatchcell):not(.e-updatedtd), .e-grid .e-gridcontent .e-rowdragdrop:not(.e-editedbatchcell):not(.e-updatedtd), .e-grid .e-gridheader .e-rowdragdrop:not(.e-editedbatchcell):not(.e-updatedtd), .e-grid .e-emptyrow:not(.e-editedbatchcell):not(.e-updatedtd) {
+                color: #212529;
+                font-weight: 500;
+            }
+
+        .btnwidth {
+            width: 35px;
+        }
+    </style>
+</head>
+
+<div>
+  
+
+
+</div>
+
+@code
+{
+    DateTime SDate = DateTime.Now, EDate = DateTime.Now;
+    string FD, TD;
+    private SfTreeGrid<Statement> TreeGrid;
+    public IList<Statement> dataSource { get; set; }
+    private IEnumerable<Statement> TreeGridData { get; set; }
+    IList<Statement> Stmt = new List<Statement>();
+    public int ID;
+    public string Name;
+    public string Remarks;
+    public bool Isload = false;
+    int user, BranchID, AccountID;
+
+    protected override async Task OnInitializedAsync()
+    {
+        BranchID = await localStorage.GetItemAsync<int>("BranchID");
+        user = await localStorage.GetItemAsync<int>("UserID");
+        AccountID = await localStorage.GetItemAsync<int>("AccountID");
+        if (user == 0)
+        {
+            string HomeUrl = "";
+            HomeUrl = await _UserRights.GetURl("Logout", AccountID);
+            uriHelper.NavigateTo(HomeUrl);
+        }
+        else
+        {
+            await base.OnInitializedAsync();
+        }
+        int year = DateTime.Now.Year;
+        SDate = new DateTime(year, 1, 1);
+        dataSource = (await _IStmt.Show(31, "01/01/2021", "31/12/2021","BSH")).ToList();
+        foreach (var item in dataSource)
+        {
+            if (item.ID == -1)
+            { item.ID = 0; }
+            if (item.ParentID == -1 || item.ParentID == 0)
+            { item.ParentID = null; }
+        }
+        Stmt = dataSource.ToList();
+        await InvokeAsync(StateHasChanged);
+    }
+    public async Task Search_Click()
+    {
+        Isload = true;
+        // string URL = _UserRights.GetBaseUrl();
+        // if (URL.Contains("localhost"))
+        // {
+        //     FD = SDate.Day.ToString("00") + "-" + SDate.Month.ToString("00") + "-" + SDate.Year;
+        //     TD = EDate.Day.ToString("00") + "-" + EDate.Month.ToString("00") + "-" + EDate.Year;
+        // }
+        // else
+        // {
+             FD = SDate.Month.ToString("00") + "-" + SDate.Day.ToString("00") + "-" + SDate.Year;
+             TD = EDate.Month.ToString("00") + "-" + EDate.Day.ToString("00") + "-" + EDate.Year;
+
+        // }
+        var str= await FinServ.GetScalar("select value from Settings where category='Costofsales'");
+        if(str.ToString().Split(':')[1].Replace('"', ' ').Replace('}', ' ')=="True")
+        {
+            dataSource = (await _IStmt.Show(31, FD.ToString(), TD.ToString(),"BSH")).Take(10).ToList();
+            foreach (var item in dataSource)
+            {
+                if (item.ID == -1)
+                { item.ID = 0; }
+                if (item.ParentID == -1 || item.ParentID == 0)
+                { item.ParentID = null; }
+            }
+            Stmt = dataSource.ToList();
+        }
+        else {
+            dataSource = (await _IStmt.Show(31, FD.ToString(), TD.ToString(),"BSH")).Take(10).ToList();
+            foreach (var item in dataSource)
+            {
+                if (item.ID == -1)
+                { item.ID = 0; }
+                if (item.ParentID == -1 || item.ParentID == 0)
+                { item.ParentID = null; }
+            }
+            Stmt = dataSource.ToList();
+        }
+
+        Isload = false;
+        await InvokeAsync(StateHasChanged);
+    }
+    public async Task Toolbarclick(Syncfusion.Blazor.Navigations.ClickEventArgs args)
+    {
+        if (args.Item.Text == "PDF Export")
+        {
+            await this.TreeGrid.ExportToPdfAsync();
+        }
+        else if (args.Item.Text == "Excel Export")
+        {
+            await this.TreeGrid.ExportToExcelAsync();
+        }
+        else if (args.Item.Text == "CSV Export")
+        {
+            await this.TreeGrid.ExportToCsvAsync();
+        }
+    }
+    void OnClick(object ID)
+    {
+        uriHelper.NavigateTo("DeliveryIn/" + @ID);
+    }
+    public void btnNew_Click()
+    {
+        uriHelper.NavigateTo(uriHelper.BaseUri + "SupplierEntry");
+    } }
